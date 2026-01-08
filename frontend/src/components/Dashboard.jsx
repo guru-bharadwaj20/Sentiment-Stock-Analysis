@@ -21,8 +21,8 @@ const Dashboard = ({ data, ticker }) => {
       acc[source] = { bullish: 0, neutral: 0, bearish: 0, total: 0 };
     }
     acc[source].total++;
-    if (comment.sentiment > 0.05) acc[source].bullish++;
-    else if (comment.sentiment < -0.05) acc[source].bearish++;
+    if (comment.score > 0.05) acc[source].bullish++;
+    else if (comment.score < -0.05) acc[source].bearish++;
     else acc[source].neutral++;
     return acc;
   }, {});
@@ -39,7 +39,7 @@ const Dashboard = ({ data, ticker }) => {
     .slice(0, 10)
     .map((comment, idx) => ({
       index: idx + 1,
-      sentiment: comment.sentiment * 100,
+      sentiment: comment.score * 100,
       title: comment.text.slice(0, 30)
     }));
 
@@ -165,9 +165,7 @@ const Dashboard = ({ data, ticker }) => {
                 <div className="text-sm font-semibold text-blue-900">News Coverage</div>
               </div>
               <div className="text-xs text-blue-700">
-                {advanced_stats?.articles_24h > 0 ? 'Active' : 'Limited'} recent coverage with {
-                  ((advanced_stats?.articles_24h / Math.max(advanced_stats?.articles_7d, 1)) * 100).toFixed(0)
-                }% from last 24h
+                {advanced_stats?.articles_24h > 0 ? 'Active' : 'Limited'} recent coverage with {((advanced_stats?.articles_24h / Math.max(advanced_stats?.articles_7d, 1)) * 100).toFixed(0)}% from last 24h
               </div>
             </div>
           </div>
@@ -185,7 +183,7 @@ const Dashboard = ({ data, ticker }) => {
               <p className="text-sm opacity-75">Market Recommendation for {ticker}</p>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold">{(confidence_score * 100).toFixed(1)}%</div>
+              <div className="text-3xl font-bold">{(confidence_score).toFixed(1)}%</div>
               <div className="text-sm opacity-75">Confidence</div>
             </div>
           </div>
@@ -358,37 +356,12 @@ const Dashboard = ({ data, ticker }) => {
                     <span className="text-xs px-2 py-1 bg-white border border-gray-200 rounded text-gray-700">
                       {comment.source}
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded font-medium ${
-                      comment.score > 0.05 ? 'bg-green-100 text-green-700' : 
-                      comment.score < -0.05 ? 'bg-red-100 text-red-700' : 
-                      'bg-gray-100 text-gray-700'
-                    }`}>
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${comment.score > 0.05 ? 'bg-green-100 text-green-700' : comment.score < -0.05 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
                       {comment.score > 0 ? '+' : ''}{(comment.score * 100).toFixed(1)}%
                     </span>
                     <span className={`text-xs px-2 py-1 rounded font-medium ${getTimeColor(comment.hours_old)}`}>
                       <Clock className="w-3 h-3 inline mr-1" />
                       {comment.time_ago}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 mb-1">{comment.text}</p>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs px-2 py-1 bg-white border border-gray-200 rounded text-gray-700">
-                      {comment.source}
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded font-medium ${
-                      comment.sentiment > 0.05 ? 'bg-green-100 text-green-700' : 
-                      comment.sentiment < -0.05 ? 'bg-red-100 text-red-700' : 
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {comment.sentiment > 0 ? '+' : ''}{(comment.sentiment * 100).toFixed(1)}%
                     </span>
                   </div>
                 </div>

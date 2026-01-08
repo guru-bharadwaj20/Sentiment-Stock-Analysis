@@ -2,7 +2,6 @@ import { useState } from 'react';
 import axios from 'axios';
 import Dashboard from './components/Dashboard';
 import { Search, Loader2, TrendingUp, BarChart3, Newspaper, Heart, Github, Linkedin, Globe, Star, Activity } from 'lucide-react';
-import './App.css';
 
 const STOCK_DATA = {
   'Global': [
@@ -260,10 +259,10 @@ function App() {
               <span className="font-semibold text-gray-900">Guru R Bharadwaj</span>
             </div>
             <div className="flex items-center space-x-6">
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition-colors">
+              <a href="https://github.com/guru-bharadwaj20" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition-colors">
                 <Github className="w-5 h-5" />
               </a>
-              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition-colors">
+              <a href="https://www.linkedin.com/in/guru-r-bharadwaj/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition-colors">
                 <Linkedin className="w-5 h-5" />
               </a>
             </div>
