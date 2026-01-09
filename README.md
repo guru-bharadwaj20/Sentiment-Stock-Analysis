@@ -1,254 +1,645 @@
 # Multi-Source Stock Sentiment Analyzer
 
-A production-ready full-stack application that analyzes stock sentiment from **7 free data sources** using AI-powered sentiment analysis with advanced time-based metrics.
+A production-ready full-stack application that provides real-time stock sentiment analysis by aggregating and analyzing news data from multiple free sources using natural language processing and advanced statistical methods.
 
-## 🚀 Key Features
+## Overview
 
-**NO API KEYS REQUIRED!** This app uses completely free, public data sources:
+This application leverages seven independent news sources to provide comprehensive sentiment analysis for global stocks. By combining concurrent data fetching, VADER sentiment analysis, and time-weighted scoring algorithms, it delivers actionable insights into market sentiment within seconds.
 
-- ✅ **Google News RSS** - Latest stock-related news articles  
-- ✅ **Bing News RSS** - Microsoft news aggregation
-- ✅ **Yahoo Finance** - Real-time news scraping
-- ✅ **Finnhub** - Financial news aggregator (demo API)
-- ✅ **Marketaux** - Market news API (demo tier)
-- ✅ **Seeking Alpha RSS** - Investment analysis feeds
-- ✅ **Alpha Vantage** - Market news API (demo tier)
-- ✅ **VADER Sentiment** - Advanced sentiment analysis engine
-
-### Advanced Analytics
-
-- 📊 **Time-Based Analysis** - 24-hour vs 7-day sentiment trends
-- 📈 **Market Statistics** - Volatility, momentum, consensus strength
-- 🎯 **5D Radar Chart** - Sentiment, consensus, recency, volume, stability
-- ⏱️ **Recency Tracking** - Color-coded time badges for news freshness
-- 🌍 **Global Markets** - 40+ stocks from US, India, UK, China, Japan
-- ⚡ **Concurrent Fetching** - 5-10 second analysis (vs 3+ minutes sequential)
-
-## Tech Stack
-
-### Backend
-- **FastAPI** - Modern Python web framework
-- **VADER Sentiment** - Sentiment analysis engine
-- **BeautifulSoup4** - Web scraping
-- **feedparser** - RSS feed parsing
-- **requests** - HTTP client
-- **concurrent.futures** - Parallel processing
-
-### Frontend
-- **React 18** - UI framework
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **Recharts** - Data visualization (Radar, Bar, Line, Pie charts)
-- **Axios** - HTTP client
-- **Lucide React** - Icons
+**Key Capabilities:**
+- Multi-source news aggregation with parallel processing
+- AI-powered sentiment analysis using VADER (Valence Aware Dictionary and sEntiment Reasoner)
+- Time-decay weighted scoring for recency bias
+- Advanced market metrics including volatility, momentum, and consensus strength
+- Interactive data visualizations with radar charts, trend analysis, and distribution graphs
+- Support for 40+ stocks across six major global markets
 
 ## Features
 
-- ✨ **7-source news aggregation** - Google, Bing, Yahoo, Finnhub, Marketaux, Seeking Alpha, Alpha Vantage
-- 📊 **Real-time sentiment analysis** - VADER compound scores
-- 🎯 **Advanced statistics** - Volatility, momentum, consensus strength
-- ⏱️ **Time-based metrics** - 24h vs 7d sentiment, recency weighting
-- 🌍 **Country selector** - Popular stocks from 6 global markets
-- 📈 **Interactive visualizations** - Radar, pie, bar, line charts
-- 🔍 **Source attribution** - Every article tagged with source and timestamp
-- 💰 **Stock information** - Company name, sector display
-- 🎨 **Professional UI** - Clean white/gray design
-- ⚡ **Concurrent fetching** - ThreadPoolExecutor for 5-10s response time
-- 🎯 **Smart weighting** - Recency bias for fresher news
+### Data Acquisition
+- **Seven News Sources** (No API keys required):
+  - Google News RSS - Aggregated financial news
+  - Bing News RSS - Microsoft news feed
+  - Yahoo Finance - Web-scraped latest headlines
+  - Finnhub API - Financial news aggregator (demo tier)
+  - Marketaux API - Market news service (demo tier)
+  - Seeking Alpha RSS - Investment analysis and commentary
+  - Alpha Vantage API - Market news service (demo tier)
+
+### Analytics Engine
+- **Sentiment Analysis**: VADER-based compound scoring (-1.0 to +1.0)
+- **Time-Based Metrics**: Separate 24-hour and 7-day sentiment averages
+- **Advanced Statistics**:
+  - Volatility index (standard deviation of sentiment scores)
+  - Momentum score (recent vs. historical sentiment comparison)
+  - Consensus strength (sentiment agreement level)
+  - Recency weighting with logarithmic decay function
+- **Performance**: Concurrent processing delivers results in 5-10 seconds
+
+### User Interface
+- **Market Selection**: Pre-configured stock lists for US, India, UK, China, Japan, and Global markets
+- **Interactive Visualizations**: 
+  - 5-dimensional radar chart for market strength analysis
+  - Sentiment distribution pie charts
+  - Time-series trend analysis
+  - Source attribution breakdown
+- **Real-Time Analysis**: Fresh data pulled and analyzed on-demand
+- **Responsive Design**: Built with React 18 and Tailwind CSS
+
+
+## Architecture
+
+### Technology Stack
+
+**Backend (Python)**
+- **FastAPI** - High-performance async web framework
+- **VADER Sentiment** - Natural language processing for sentiment analysis
+- **BeautifulSoup4** - HTML parsing and web scraping
+- **feedparser** - RSS/Atom feed parsing
+- **requests** - HTTP client library
+- **concurrent.futures** - Parallel execution with ThreadPoolExecutor
+
+**Frontend (JavaScript/React)**
+- **React 18** - Component-based UI framework
+- **Vite** - Next-generation build tool and dev server
+- **Tailwind CSS** - Utility-first CSS framework
+- **Recharts** - Composable charting library (Radar, Bar, Line, Pie)
+- **Axios** - Promise-based HTTP client
+- **Lucide React** - Modern icon library
+
+### System Design
+
+```
+┌─────────────────┐         ┌──────────────────┐         ┌─────────────────┐
+│                 │         │                  │         │                 │
+│  React Frontend │◄────────│  FastAPI Backend │◄────────│  News Sources   │
+│  (Port 5173)    │  JSON   │  (Port 8000)     │  HTTP   │  (7 sources)    │
+│                 │         │                  │         │                 │
+└─────────────────┘         └──────────────────┘         └─────────────────┘
+       │                            │
+       │                            │
+       ▼                            ▼
+   Recharts                  ThreadPoolExecutor
+   Visualizations            (Concurrent Fetching)
+                                    │
+                                    ▼
+                             VADER Sentiment
+                             Analysis Engine
+```
+
 
 ## Project Structure
 
 ```
 Sentiment_Stock_Analysis/
 ├── backend/
-│   ├── main.py              # FastAPI application
-│   ├── service.py           # News fetching & sentiment analysis
+│   ├── main.py              # FastAPI application with CORS configuration
+│   ├── service.py           # News aggregation and sentiment analysis logic
 │   ├── requirements.txt     # Python dependencies
-│   └── .env                 # Environment variables (optional)
+│   └── __pycache__/         # Python bytecode cache
+│
 └── frontend/
     ├── src/
-    │   ├── App.jsx          # Main component with country selector
+    │   ├── App.jsx          # Main application component with market selector
+    │   ├── main.jsx         # Application entry point
+    │   ├── index.css        # Global styles and Tailwind directives
     │   ├── components/
-    │   │   └── Dashboard.jsx # Analytics dashboard
-    │   ├── index.css        # Global styles
-    │   └── main.jsx         # Entry point
-    ├── package.json         # Node dependencies
-    └── tailwind.config.js   # Tailwind configuration
+    │   │   └── Dashboard.jsx # Analytics dashboard with visualizations
+    │   └── assets/          # Static assets
+    │
+    ├── public/              # Public static files
+    ├── package.json         # Node.js dependencies and scripts
+    ├── vite.config.js       # Vite build configuration
+    └── tailwind.config.js   # Tailwind CSS configuration
 ```
 
-## Setup Instructions
 
-### Backend Setup
+## Installation & Setup
 
-1. Navigate to backend directory:
-```bash
-cd backend
+### Prerequisites
+- Python 3.8 or higher
+- Node.js 16.x or higher
+- npm or yarn package manager
+
+### Backend Configuration
+
+1. **Navigate to backend directory:**
+   ```bash
+   cd backend
+   ```
+
+2. **Create and activate virtual environment:**
+   ```bash
+   # Windows
+   python -m venv venv
+   venv\Scripts\activate
+
+   # macOS/Linux
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Start the FastAPI server:**
+   ```bash
+   uvicorn main:app --reload
+   ```
+   
+   Server will be available at `http://localhost:8000`
+   
+   API documentation at `http://localhost:8000/docs`
+
+### Frontend Configuration
+
+1. **Navigate to frontend directory:**
+   ```bash
+   cd frontend
+   ```
+
+2. **Install Node.js dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+   
+   Application will be available at `http://localhost:5173`
+
+### Verification
+
+Ensure both servers are running concurrently:
+- Backend: `http://localhost:8000`
+- Frontend: `http://localhost:5173`
+
+**Note:** No API keys or environment variables are required. All news sources use publicly accessible endpoints or demo tiers.
+
+
+## Usage Guide
+
+### Basic Workflow
+
+1. **Launch Application**: Open browser and navigate to `http://localhost:5173`
+
+2. **Select Market**: Choose from available markets:
+   - Global (major international stocks)
+   - United States
+   - India
+   - United Kingdom
+   - China
+   - Japan
+
+3. **Analyze Stock**: 
+   - Click on any pre-configured stock from the market grid, OR
+   - Enter a custom ticker symbol in the search field
+
+4. **View Results**: Analysis completes in 5-10 seconds, displaying:
+   - Overall sentiment verdict (STRONG BUY, BUY, HOLD, SELL, STRONG SELL)
+   - Confidence score (0-100%)
+   - Advanced market statistics
+   - Interactive visualizations
+   - Latest news headlines with sentiment scores
+
+### Dashboard Components
+
+**Sentiment Overview**
+- Overall verdict with confidence percentage
+- Bullish/Bearish/Neutral article counts
+- Stock information (company name, sector)
+
+**Advanced Statistics**
+- Average sentiment score
+- Volatility index
+- Momentum indicator
+- 24-hour vs 7-day sentiment comparison
+- Article volume metrics
+- Consensus strength rating
+
+**Visualizations**
+- **Market Strength Radar**: 5-dimensional analysis (sentiment, consensus, recency, volume, stability)
+- **Sentiment Distribution**: Pie chart of bullish/bearish/neutral proportions
+- **Time-Based Trends**: 24h vs 7d sentiment comparison
+- **Source Breakdown**: Distribution of articles by news source
+
+**News Headlines**
+- Latest articles with sentiment scores
+- Source attribution
+- Time-based recency badges (color-coded by freshness)
+- Individual article sentiment classification
+
+
+## API Reference
+
+### Base URL
+```
+http://localhost:8000
 ```
 
-2. Create virtual environment:
-```bash
-python -m venv venv
+### Endpoints
+
+#### Health Check
+```http
+GET /
 ```
-
-3. Activate virtual environment:
-```bash
-venv\Scripts\activate
-```
-
-4. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-5. Run the backend server:
-```bash
-uvicorn main:app --reload
-```
-
-Backend will run on `http://localhost:8000`
-
-**That's it! No API keys or configuration needed!**
-
-### Frontend Setup
-
-1. Navigate to frontend directory:
-```bash
-cd frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Run development server:
-```bash
-npm run dev
-```
-
-Frontend will run on `http://localhost:5173`
-
-## Usage
-
-1. Ensure both backend and frontend servers are running
-2. Open browser at `http://localhost:5173`
-3. Select a country/market from the dropdown (Global, US, India, UK, China, Japan)
-4. Click any popular stock OR enter a custom ticker
-5. Wait 5-10 seconds for concurrent analysis across 7 sources
-6. View comprehensive dashboard:
-   - Overall sentiment verdict and confidence score
-   - Advanced statistics (volatility, momentum, consensus)
-   - Market strength radar chart
-   - Time-based analysis (24h vs 7d trends)
-   - Latest headlines with recency badges
-   - Sentiment distribution and source breakdown
-
-## API Endpoints
-
-### GET `/analyze/{ticker}`
-
-Analyzes sentiment for a given stock ticker from 7 concurrent news sources.
+Returns API status confirmation.
 
 **Response:**
 ```json
 {
-  "verdict": "BUY",
-  "confidence_score": 65.5,
+  "message": "Stock Sentiment Analyzer API is running"
+}
+```
+
+#### Analyze Stock
+```http
+GET /analyze/{ticker}
+```
+
+Performs comprehensive sentiment analysis for the specified stock ticker.
+
+**Parameters:**
+- `ticker` (path parameter): Stock symbol (e.g., TSLA, AAPL, RELIANCE.NS)
+
+**Response Schema:**
+```json
+{
+  "ticker": "string",
+  "verdict": "STRONG BUY | BUY | HOLD | SELL | STRONG SELL",
+  "confidence_score": 0-100,
   "stats": {
-    "bullish": 25,
-    "bearish": 10,
-    "neutral": 15
+    "bullish": 0,
+    "bearish": 0,
+    "neutral": 0
   },
   "top_comments": [
     {
-      "text": "Great earnings report!",
-      "score": 0.856,
-      "sentiment": "bullish",
-      "source": "Google News",
-      "time_ago": "3h ago",
-      "hours_old": 3.2
+      "text": "string",
+      "score": -1.0 to 1.0,
+      "sentiment": "bullish | bearish | neutral",
+      "source": "string",
+      "time_ago": "string",
+      "hours_old": 0.0
     }
   ],
   "stock_info": {
-    "name": "Reliance Industries",
-    "sector": "Energy"
+    "name": "string",
+    "sector": "string"
+  },
+  "advanced_stats": {
+    "avg_sentiment": -1.0 to 1.0,
+    "volatility": 0.0 to 1.0,
+    "momentum": -1.0 to 1.0,
+    "sentiment_24h": -1.0 to 1.0,
+    "sentiment_7d": -1.0 to 1.0,
+    "articles_24h": 0,
+    "articles_7d": 0,
+    "consensus_strength": 0.0 to 1.0
+  }
+}
+```
+
+**Example Request:**
+```bash
+curl http://localhost:8000/analyze/TSLA
+```
+
+**Example Response:**
+```json
+{
+  "ticker": "TSLA",
+  "verdict": "BUY",
+  "confidence_score": 68.5,
+  "stats": {
+    "bullish": 28,
+    "bearish": 8,
+    "neutral": 14
+  },
+  "top_comments": [
+    {
+      "text": "Tesla reports record quarterly deliveries exceeding analyst expectations",
+      "score": 0.876,
+      "sentiment": "bullish",
+      "source": "Google News",
+      "time_ago": "2h ago",
+      "hours_old": 2.3
+    }
+  ],
+  "stock_info": {
+    "name": "Tesla Inc.",
+    "sector": "Electric Vehicles"
   },
   "advanced_stats": {
     "avg_sentiment": 0.234,
     "volatility": 0.156,
     "momentum": 0.089,
     "sentiment_24h": 0.278,
-    "sentiment_7d": 0.189,
-    "articles_24h": 12,
-    "articles_7d": 35,
+    "sentiment_7d": 0.201,
+    "articles_24h": 15,
+    "articles_7d": 42,
     "consensus_strength": 0.714
   }
 }
 ```
 
-## Sentiment Algorithm
 
-### Data Sources (All Free, No Auth!)
+## Sentiment Analysis Methodology
 
-1. **Google News RSS**: Stock-related news from Google News aggregator
-2. **Bing News RSS**: Microsoft's news feed for financial topics
-3. **Yahoo Finance**: Web scraping for latest stock news
-4. **Finnhub API**: Financial news (demo tier, no key needed)
-5. **Marketaux API**: Market news aggregator (demo tier)
-6. **Seeking Alpha RSS**: Investment analysis and commentary
-7. **Alpha Vantage**: Market news API (demo tier)
+### Data Collection
+
+**Multi-Source Aggregation**
+
+The system concurrently fetches news data from seven independent sources using ThreadPoolExecutor:
+
+1. **Google News RSS** - Financial news aggregated by Google's news engine
+2. **Bing News RSS** - Microsoft's news search API in RSS format
+3. **Yahoo Finance** - Web-scraped headlines from Yahoo Finance pages
+4. **Finnhub API** - Financial news from Finnhub's demo tier
+5. **Marketaux API** - Market news from Marketaux's free tier
+6. **Seeking Alpha RSS** - Investment analysis and opinion pieces
+7. **Alpha Vantage API** - Market news from Alpha Vantage's demo tier
+
+Each source is queried with a 5-second timeout to ensure responsive performance. Typical aggregate volume: 25-50 articles per stock covering the last 7 days.
 
 ### Processing Pipeline
 
-1. **Concurrent Fetching**: ThreadPoolExecutor fetches from all 7 sources simultaneously (5s timeout each)
-2. **Timestamp Extraction**: Parse published dates, calculate hours/days old
-3. **Text Cleaning**: Remove URLs, special characters, normalize text
-4. **VADER Analysis**: Calculate compound sentiment score (-1 to +1)
-5. **Recency Weighting**: `WeightedScore = compound × (1 + log(1 + (7 - days_old)))`
-6. **Advanced Statistics**:
-   - **Volatility**: Standard deviation of sentiment scores
-   - **Momentum**: Recent (3 articles) vs older (3 articles) sentiment difference
-   - **Consensus**: Agreement level (max(bullish%, bearish%))
-   - **24h/7d Sentiment**: Time-segmented averages
-7. **Verdict Generation**:
-   - `> 0.2`: STRONG BUY
-   - `> 0.05`: BUY
-   - `< -0.05`: SELL
-   - `< -0.2`: STRONG SELL
-   - Otherwise: HOLD
-
-### Data Quality
-
-- 25-50 news articles per stock from 7 sources
-- Articles from last 7 daysTSLA
+**1. Timestamp Extraction**
+```python
+# Parse publication dates and calculate article age
+published_date = parse_datetime(article.published)
+hours_old = (datetime.now() - published_date).total_seconds() / 3600
+days_old = hours_old / 24
 ```
 
-### Frontend Build
+**2. Text Normalization**
+```python
+# Clean article text
+text = remove_urls(text)
+text = remove_special_characters(text)
+text = normalize_whitespace(text)
+```
+
+**3. VADER Sentiment Analysis**
+```python
+# Calculate compound sentiment score (-1.0 to +1.0)
+vader_scores = analyzer.polarity_scores(text)
+compound_score = vader_scores['compound']
+```
+
+**4. Recency Weighting**
+```python
+# Apply logarithmic time decay
+recency_weight = 1 + log(1 + (7 - days_old))
+weighted_score = compound_score * recency_weight
+```
+
+### Advanced Metrics
+
+**Volatility Index**
+- Standard deviation of all sentiment scores
+- Measures consistency of market sentiment
+- Higher values indicate conflicting opinions
+
+**Momentum Score**
+- Compares average sentiment of 3 most recent articles vs. 3 oldest articles
+- Positive values indicate improving sentiment
+- Negative values indicate deteriorating sentiment
+
+**Consensus Strength**
+- Calculated as: `max(bullish%, bearish%) / 100`
+- Measures market agreement level
+- Values near 1.0 indicate strong consensus
+
+**Time-Segmented Analysis**
+- **24-hour sentiment**: Average of articles published in last 24 hours
+- **7-day sentiment**: Average of all articles in dataset
+- Enables trend detection and recency bias analysis
+
+### Verdict Classification
+
+The final verdict is determined by the weighted average sentiment score:
+
+| Score Range | Verdict | Description |
+|-------------|---------|-------------|
+| > 0.20 | STRONG BUY | Overwhelmingly positive sentiment |
+| 0.05 to 0.20 | BUY | Moderately positive sentiment |
+| -0.05 to 0.05 | HOLD | Neutral or mixed sentiment |
+| -0.20 to -0.05 | SELL | Moderately negative sentiment |
+| < -0.20 | STRONG SELL | Overwhelmingly negative sentiment |
+
+**Confidence Score**
+
+Calculated using multiple factors:
+- Sentiment magnitude (stronger signals = higher confidence)
+- Article volume (more data = higher confidence)
+- Consensus strength (agreement = higher confidence)
+- Recency (fresh data = higher confidence)
+
+### Performance Optimization
+
+**Concurrent Execution**
+- ThreadPoolExecutor with 7 parallel workers
+- Individual source timeouts prevent slowdowns
+- Total analysis time: 5-10 seconds (vs. 30+ seconds sequential)
+
+**Data Quality**
+- Duplicate detection and removal
+- Source attribution for transparency
+- Timestamp validation and normalization
+
+
+## Development
+
+### Running Tests
+
+**Backend API Testing**
+```bash
+# Test health endpoint
+curl http://localhost:8000/
+
+# Test analysis endpoint
+curl http://localhost:8000/analyze/TSLA
+
+# Test with international stock
+curl http://localhost:8000/analyze/RELIANCE.NS
+```
+
+**Frontend Development**
 ```bash
 cd frontend
+
+# Run development server with hot reload
+npm run dev
+
+# Build production bundle
 npm run build
+
+# Preview production build
+npm run preview
+
+# Run linting
+npm run lint
 ```
 
-### Performance
-- Concurrent fetching: 5-10 seconds per analysis
-- 7 sources processed in parallel
-- ThreadPoolExecutor with timeout handling
+### Project Configuration
 
-## Credits
+**Backend Dependencies** (requirements.txt)
+```
+fastapi==0.109.0          # Web framework
+uvicorn[standard]==0.27.0 # ASGI server
+vaderSentiment==3.3.2     # Sentiment analysis
+beautifulsoup4==4.12.3    # Web scraping
+requests==2.31.0          # HTTP client
+feedparser==6.0.11        # RSS parsing
+```
 
-Built by [Guru R Bharadwaj](https://github.com/guru-bharadwaj20)
+**Frontend Dependencies** (package.json)
+```json
+{
+  "dependencies": {
+    "react": "^18.3.1",
+    "axios": "^1.6.5",
+    "recharts": "^2.10.4",
+    "lucide-react": "^0.309.0"
+  }
+}
+```
 
-Connect: [LinkedIn](https://www.linkedin.com/in/guru-r-bharadwaj/) Backend Testing
+### Environment Variables
+
+No environment variables are required for basic operation. All news sources use publicly accessible endpoints or demo API keys.
+
+Optional configurations can be added to `backend/.env`:
+```env
+# API Configuration (optional)
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# Timeout settings (optional)
+NEWS_FETCH_TIMEOUT=5
+```
+
+## Deployment
+
+### Production Build
+
+**Backend**
 ```bash
-curl http://localhost:8000/analyze/RELIANCE
+cd backend
+
+# Install production dependencies
+pip install -r requirements.txt
+
+# Run with production server
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-### Frontend Build
+**Frontend**
 ```bash
 cd frontend
+
+# Create optimized production build
 npm run build
+
+# Output directory: frontend/dist
+# Deploy dist/ folder to static hosting service
 ```
+
+### Deployment Platforms
+
+**Backend Options:**
+- Heroku (with Procfile)
+- Railway
+- Render
+- AWS EC2 / Elastic Beanstalk
+- Google Cloud Run
+- DigitalOcean App Platform
+
+**Frontend Options:**
+- Vercel
+- Netlify
+- GitHub Pages
+- AWS S3 + CloudFront
+- Firebase Hosting
+
+### Performance Considerations
+
+- **Concurrent Processing**: Maintains 5-10 second response time under normal conditions
+- **Caching**: Consider implementing Redis cache for frequently queried stocks
+- **Rate Limiting**: Implement rate limiting for production API
+- **Error Handling**: Graceful degradation when news sources are unavailable
+
+## Troubleshooting
+
+### Common Issues
+
+**Backend won't start**
+- Verify Python 3.8+ is installed: `python --version`
+- Ensure virtual environment is activated
+- Check all dependencies installed: `pip list`
+- Port 8000 may be in use: try `--port 8001`
+
+**Frontend build errors**
+- Clear node_modules: `rm -rf node_modules && npm install`
+- Verify Node.js version: `node --version` (16.x+ required)
+- Check for conflicting global packages
+
+**CORS errors**
+- Verify backend CORS middleware includes frontend URL
+- Check both servers are running on expected ports
+- Browser may be caching old CORS headers - try incognito mode
+
+**No data returned**
+- News sources may be temporarily unavailable
+- Some tickers may not have recent news coverage
+- Check backend logs for specific source errors
+
+### Debug Mode
+
+Enable detailed logging:
+```python
+# backend/main.py
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
+## Contributing
+
+Contributions are welcome! Please follow these guidelines:
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Commit changes: `git commit -am 'Add new feature'`
+4. Push to branch: `git push origin feature/new-feature`
+5. Submit a pull request
+
+### Code Style
+
+- **Python**: Follow PEP 8 guidelines
+- **JavaScript**: Use ESLint configuration provided
+- **Components**: Maintain single responsibility principle
+- **Comments**: Document complex logic and algorithms
 
 ## License
 
-MIT
+This project is licensed under the MIT License. See LICENSE file for details.
+
+## Acknowledgments
+
+- **VADER Sentiment Analysis**: Hutto, C.J. & Gilbert, E.E. (2014). VADER: A Parsimonious Rule-based Model for Sentiment Analysis of Social Media Text
+- **News Sources**: Google News, Bing, Yahoo Finance, Finnhub, Marketaux, Seeking Alpha, Alpha Vantage
+- **Open Source Libraries**: FastAPI, React, Vite, Tailwind CSS, Recharts
+
+## Author
+
+**Guru R Bharadwaj**
+- GitHub: [@guru-bharadwaj20](https://github.com/guru-bharadwaj20)
+- LinkedIn: [Guru R Bharadwaj](https://www.linkedin.com/in/guru-r-bharadwaj/)
+
+---
+
+**Built with ❤️ for the financial analysis community**
