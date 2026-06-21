@@ -3,12 +3,13 @@ import { analyzeTicker } from '../services/api';
 
 const PHASES = [
   'Fetching news from 7 sources…',
-  'Running VADER sentiment analysis…',
+  'Deduplicating articles…',
+  'Running sentiment analysis…',
   'Computing metrics & confidence…',
   'Rendering dashboard…',
 ];
 
-const PHASE_DELAYS = [0, 3000, 6000, 9000];
+const PHASE_DELAYS = [0, 2500, 5000, 7500, 10000];
 
 export function useAnalysis() {
   const [ticker, setTicker]   = useState('');
@@ -35,7 +36,6 @@ export function useAnalysis() {
     setData(null);
     setPhase(PHASES[0]);
 
-    // Simulate incremental progress phases
     PHASE_DELAYS.slice(1).forEach((delay, i) => {
       timers.current.push(setTimeout(() => setPhase(PHASES[i + 1]), delay));
     });
@@ -43,12 +43,14 @@ export function useAnalysis() {
     try {
       const result = await analyzeTicker(sym);
       clearTimers();
-      setPhase(PHASES[3]);
+      setPhase(PHASES[4]);
       setData(result);
     } catch (err) {
       clearTimers();
+      const apiError = err?.response?.data?.error;
       setError(
-        err?.response?.data?.detail
+        apiError?.message
+          ?? err?.response?.data?.detail
           ?? 'Analysis failed — is the backend running on port 8000?'
       );
     } finally {

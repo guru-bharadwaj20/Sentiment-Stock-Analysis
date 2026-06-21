@@ -1,4 +1,4 @@
-import { FileText, Copy, Wifi, Database, Timer, Download } from 'lucide-react';
+import { FileText, Copy, Wifi, Database, Timer, Download, Printer } from 'lucide-react';
 
 function MiniCard({ Icon, label, value, sub, color }) {
   return (
@@ -13,9 +13,17 @@ function MiniCard({ Icon, label, value, sub, color }) {
   );
 }
 
-export default function AnalyticsCards({ meta, timing, cached, onExport }) {
-  const m = meta ?? {};
-  const t = timing ?? {};
+export default function AnalyticsCards({ meta, timing, cached, cache_meta, onExport }) {
+  const m  = meta       ?? {};
+  const t  = timing     ?? {};
+  const cm = cache_meta ?? {};
+
+  const cacheSubline = (() => {
+    if (cached && cm.expires_in_s != null) {
+      return `${cm.age_s?.toFixed(0) ?? '?'}s old · expires in ${cm.expires_in_s?.toFixed(0) ?? '?'}s`;
+    }
+    return cached ? 'served instantly' : 'fresh fetch';
+  })();
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -47,14 +55,14 @@ export default function AnalyticsCards({ meta, timing, cached, onExport }) {
         Icon={Database}
         label="Cache"
         value={cached ? 'HIT' : 'MISS'}
-        sub={cached ? 'served instantly' : 'fresh fetch'}
+        sub={cacheSubline}
         color={cached ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}
       />
       <MiniCard
         Icon={Timer}
         label="Time"
-        value={t.total_s != null ? `${t.total_s}s` : '—'}
-        sub={t.fetch_s != null ? `fetch ${t.fetch_s}s` : 'cached'}
+        value={t.total_s != null ? `${t.total_s}s` : cached ? '< 1ms' : '—'}
+        sub={t.fetch_s != null ? `fetch ${t.fetch_s}s · score ${t.scoring_ms?.toFixed(0)}ms` : 'cached result'}
       />
 
       {/* Export card */}
@@ -63,18 +71,26 @@ export default function AnalyticsCards({ meta, timing, cached, onExport }) {
           <Download className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
           <span className="text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide">Export</span>
         </div>
-        <div className="flex gap-1.5 mt-auto">
+        <div className="flex flex-col gap-1.5 mt-auto">
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => onExport?.('json')}
+              className="px-2.5 py-1 text-xs font-semibold bg-gray-900 dark:bg-gray-600 text-white rounded hover:bg-gray-700 dark:hover:bg-gray-500 transition-colors"
+            >
+              JSON
+            </button>
+            <button
+              onClick={() => onExport?.('csv')}
+              className="px-2.5 py-1 text-xs font-semibold border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              CSV
+            </button>
+          </div>
           <button
-            onClick={() => onExport?.('json')}
-            className="px-2.5 py-1 text-xs font-semibold bg-gray-900 dark:bg-gray-600 text-white rounded hover:bg-gray-700 dark:hover:bg-gray-500 transition-colors"
+            onClick={() => onExport?.('pdf')}
+            className="flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
-            JSON
-          </button>
-          <button
-            onClick={() => onExport?.('csv')}
-            className="px-2.5 py-1 text-xs font-semibold border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            CSV
+            <Printer className="w-3 h-3" /> PDF
           </button>
         </div>
       </div>

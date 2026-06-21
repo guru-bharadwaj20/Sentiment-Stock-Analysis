@@ -12,8 +12,8 @@ function sentimentColor(v) {
 }
 
 export default function SourceContribution({ source_contributions, source_health }) {
-  const contrib  = source_contributions ?? {};
-  const health   = source_health ?? [];
+  const contrib   = source_contributions ?? {};
+  const health    = source_health ?? [];
   const healthMap = health.reduce((acc, h) => { acc[h.name] = h; return acc; }, {});
 
   const sources = Object.entries(contrib).sort(([, a], [, b]) => b.contribution_pct - a.contribution_pct);
@@ -33,10 +33,25 @@ export default function SourceContribution({ source_contributions, source_health
         </span>
       </div>
 
+      {/* Column headers */}
+      <div className="hidden sm:flex items-center gap-3 mb-2 text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide">
+        <div className="w-28 shrink-0">Source</div>
+        <div className="flex-1">Weight</div>
+        <div className="w-10 text-right">Pct</div>
+        <div className="w-14 text-right">Sentiment</div>
+        <div className="w-14">Articles</div>
+        <div className="w-14">Avg age</div>
+        <div className="w-16 hidden sm:block">Latency</div>
+      </div>
+
       <div className="space-y-3">
         {sources.map(([name, c]) => {
           const h = healthMap[name];
           const color = sentimentColor(c.avg_sentiment);
+          const avgAge = c.avg_age_hours ?? 0;
+          const ageStr = avgAge < 24
+            ? `${avgAge.toFixed(0)}h`
+            : `${(avgAge / 24).toFixed(1)}d`;
           return (
             <div key={name} className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 w-28 shrink-0">
@@ -52,14 +67,15 @@ export default function SourceContribution({ source_contributions, source_health
               </div>
 
               <div className="flex items-center gap-2 text-xs shrink-0">
-                <span className="text-gray-500 dark:text-gray-400 w-10 text-right">{c.contribution_pct}%</span>
-                <span className="font-semibold w-14 text-right" style={{ color }}>
+                <span className="text-gray-500 dark:text-gray-400 w-10 text-right tabular-nums">{c.contribution_pct}%</span>
+                <span className="font-semibold w-14 text-right tabular-nums" style={{ color }}>
                   {c.avg_sentiment > 0 ? '+' : ''}{(c.avg_sentiment * 100).toFixed(1)}%
                 </span>
-                <span className="text-gray-400 dark:text-gray-500 w-14">{c.articles} art.</span>
+                <span className="text-gray-500 dark:text-gray-400 w-14 tabular-nums">{c.articles} art.</span>
+                <span className="text-gray-400 dark:text-gray-500 w-14 tabular-nums">{ageStr}</span>
                 {h && (
-                  <span className="text-gray-300 dark:text-gray-600 hidden sm:flex items-center gap-0.5">
-                    <Clock className="w-3 h-3" />{h.duration_ms}ms
+                  <span className="text-gray-300 dark:text-gray-600 w-16 hidden sm:flex items-center gap-0.5 tabular-nums">
+                    <Clock className="w-3 h-3 shrink-0" />{h.duration_ms}ms
                   </span>
                 )}
               </div>

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class ArticleResult(BaseModel):
     text: str = Field(..., description="Headline text (up to 200 chars)")
-    score: float = Field(..., ge=-1.0, le=1.0, description="VADER compound score")
+    score: float = Field(..., ge=-1.0, le=1.0, description="Compound sentiment score")
     sentiment: str = Field(..., description="bullish | bearish | neutral")
     source: str
     source_weight: float = Field(..., description="Reliability weight 0–1")
@@ -28,7 +28,7 @@ class StockInfo(BaseModel):
 
 
 class AdvancedStats(BaseModel):
-    avg_sentiment: float = Field(..., description="Mean VADER compound score")
+    avg_sentiment: float = Field(..., description="Mean compound score")
     weighted_sentiment: float = Field(..., description="Source-reliability-weighted mean")
     volatility: float = Field(..., description="Std-dev of compound scores")
     momentum: float = Field(..., description="Latest 3 avg − earliest 3 avg")
@@ -57,6 +57,7 @@ class SourceContribution(BaseModel):
     articles: int
     avg_sentiment: float
     contribution_pct: float
+    avg_age_hours: float = 0.0
 
 
 class SourceHealth(BaseModel):
@@ -75,6 +76,11 @@ class AnalysisMeta(BaseModel):
     cached: bool
 
 
+class CacheMeta(BaseModel):
+    age_s: float = Field(..., description="Seconds since result was cached")
+    expires_in_s: float = Field(..., description="Seconds until cache entry expires")
+
+
 class TimingInfo(BaseModel):
     fetch_s: float
     dedup_ms: float
@@ -90,11 +96,23 @@ class HistoryEntry(BaseModel):
     avg_sentiment: float
 
 
+class HistoryAnalytics(BaseModel):
+    total_runs: int
+    rolling_7d_avg_sentiment: float
+    rolling_30d_avg_sentiment: float
+    avg_confidence: float
+    best_run: dict
+    worst_run: dict
+    verdict_distribution: dict[str, int]
+    moving_avg_series: list[float]
+
+
 class AnalysisResponse(BaseModel):
     ticker: str
     verdict: str
     confidence_score: float = Field(..., ge=0.0, le=100.0)
     verdict_reasons: list[str]
+    model_used: str = Field("vader", description="Sentiment model: vader | finbert")
     stats: Stats
     top_comments: list[ArticleResult]
     stock_info: Optional[StockInfo] = None
@@ -103,6 +121,7 @@ class AnalysisResponse(BaseModel):
     source_contributions: dict[str, SourceContribution] = {}
     source_health: list[SourceHealth] = []
     meta: Optional[AnalysisMeta] = None
+    cache_meta: Optional[CacheMeta] = None
     timing: Optional[TimingInfo] = None
     history: list[HistoryEntry] = []
     cached: bool = False
@@ -112,3 +131,4 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     cache_entries: int
+    sentiment_model: str = "vader"

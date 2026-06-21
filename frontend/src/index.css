@@ -45,3 +45,23 @@ body {
 }
 
 .animate-slideIn { animation: slideIn 0.3s ease-out forwards; }
+
+/* ── Print / Export PDF ──────────────────────────────────────── */
+@media print {
+  /* Hide non-content chrome */
+  nav, footer, button, .no-print { display: none !important; }
+
+  /* Light background regardless of dark mode */
+  body, html { background: #fff !important; color: #111 !important; }
+
+  /* Reset dark-mode card backgrounds */
+  .dark .bg-gray-800, .dark .bg-gray-900, .dark .bg-gray-950 {
+    background: #fff !important;
+  }
+
+  /* Ensure full width on A4 */
+  .max-w-7xl { max-width: 100% !important; padding: 0 !important; }
+
+  /* Page break hints */
+  .space-y-5 > * { page-break-inside: avoid; }
+}

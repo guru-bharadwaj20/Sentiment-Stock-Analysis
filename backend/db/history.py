@@ -35,6 +35,13 @@ WHERE ticker = ?
 ORDER BY timestamp DESC
 LIMIT ?
 """
+_SELECT_ANALYTICS = """
+SELECT timestamp, verdict, confidence_score, avg_sentiment
+FROM analysis_history
+WHERE ticker = ?
+ORDER BY timestamp DESC
+LIMIT 30
+"""
 
 
 def _conn() -> sqlite3.Connection:
@@ -74,3 +81,56 @@ def get_history(ticker: str, limit: int = 8) -> list[dict[str, Any]]:
     except Exception as exc:
         logger.warning("DB read failed: %s", exc)
         return []
+
+
+def get_analytics(ticker: str) -> dict[str, Any]:
+    """Rolling analytics over the last 30 runs for a ticker."""
+    try:
+        with _conn() as c:
+            rows = [dict(r) for r in c.execute(_SELECT_ANALYTICS, (ticker,)).fetchall()]
+    except Exception as exc:
+        logger.warning("DB analytics failed: %s", exc)
+        return {}
+
+    if not rows:
+        return {}
+
+    sentiments  = [r["avg_sentiment"]    for r in rows]
+    confidences = [r["confidence_score"] for r in rows]
+
+    last_7  = sentiments[:7]
+    last_30 = sentiments
+
+    best  = max(rows, key=lambda r: r["avg_sentiment"])
+    worst = min(rows, key=lambda r: r["avg_sentiment"])
+
+    # 3-point moving average over chronological order (oldest first)
+    chron = list(reversed(sentiments))
+    moving_avg = [
+        round(sum(chron[max(0, i - 2): i + 1]) / min(i + 1, 3), 4)
+        for i in range(len(chron))
+    ]
+
+    verdict_dist: dict[str, int] = {}
+    for r in rows:
+        v = r["verdict"] or "UNKNOWN"
+        verdict_dist[v] = verdict_dist.get(v, 0) + 1
+
+    return {
+        "total_runs":                len(rows),
+        "rolling_7d_avg_sentiment":  round(sum(last_7) / len(last_7), 4),
+        "rolling_30d_avg_sentiment": round(sum(last_30) / len(last_30), 4),
+        "avg_confidence":            round(sum(confidences) / len(confidences), 2),
+        "best_run": {
+            "timestamp": best["timestamp"],
+            "sentiment": round(best["avg_sentiment"], 4),
+            "verdict":   best["verdict"],
+        },
+        "worst_run": {
+            "timestamp": worst["timestamp"],
+            "sentiment": round(worst["avg_sentiment"], 4),
+            "verdict":   worst["verdict"],
+        },
+        "verdict_distribution": verdict_dist,
+        "moving_avg_series":    moving_avg,
+    }

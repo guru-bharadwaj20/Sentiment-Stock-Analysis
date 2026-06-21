@@ -1,4 +1,6 @@
-import { TrendingUp, TrendingDown, MinusCircle, CheckCircle, Building2, Signal, DollarSign, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingUp, TrendingDown, MinusCircle, CheckCircle, Building2, Signal,
+         DollarSign, ArrowUpRight, ArrowDownRight, Minus, Info, Cpu } from 'lucide-react';
 
 const STYLES = {
   'STRONG BUY':  { ring: 'border-green-400', bg: 'bg-green-50 dark:bg-green-900/20',  text: 'text-green-700 dark:text-green-400',  bar: 'bg-green-500'  },
@@ -37,14 +39,62 @@ function TrendBadge({ trend }) {
         </span>
       )}
       {trend.verdict_changed && trend.prev_verdict && (
-        <span className="opacity-60">was {trend.prev_verdict}</span>
+        <span className="opacity-60 ml-0.5">was {trend.prev_verdict}</span>
       )}
     </span>
   );
 }
 
+function ConfidenceTooltip({ textClass }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative inline-flex items-center">
+      <button
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        className={`${textClass} opacity-50 hover:opacity-90 transition-opacity focus:outline-none`}
+        aria-label="How confidence is calculated"
+      >
+        <Info className="w-3.5 h-3.5" />
+      </button>
+      {show && (
+        <div className="absolute right-0 top-6 z-30 w-56 p-3 bg-gray-900 text-white rounded-xl shadow-2xl">
+          <p className="text-xs font-semibold text-gray-100 mb-2">Confidence formula</p>
+          <ul className="space-y-1.5">
+            {[
+              ['Signal magnitude', '35%'],
+              ['Consensus strength', '25%'],
+              ['Article volume', '15%'],
+              ['Source reliability', '10%'],
+              ['Recency', '10%'],
+              ['Signal stability', '5%'],
+            ].map(([k, v]) => (
+              <li key={k} className="flex items-center justify-between text-xs">
+                <span className="text-gray-300">{k}</span>
+                <span className="font-mono font-bold text-white ml-2">{v}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModelBadge({ model }) {
+  if (!model || model === 'vader') return null;
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800">
+      <Cpu className="w-3 h-3" />
+      FinBERT
+    </span>
+  );
+}
+
 export default function VerdictCard({ data }) {
-  const { verdict, confidence_score, verdict_reasons = [], stats, stock_info, ticker, trend } = data;
+  const { verdict, confidence_score, verdict_reasons = [], stats, stock_info, ticker, trend, model_used } = data;
   const s = STYLES[verdict] ?? STYLES.HOLD;
 
   const total      = (stats?.bullish ?? 0) + (stats?.bearish ?? 0) + (stats?.neutral ?? 0);
@@ -56,18 +106,24 @@ export default function VerdictCard({ data }) {
       {/* Verdict */}
       <div className={`lg:col-span-2 p-6 rounded-xl border-2 ${s.ring} ${s.bg} shadow-sm`}>
         <div className="flex items-start justify-between mb-3">
-          <div>
-            <div className={`flex items-center gap-2 ${s.text} mb-1.5`}>
+          <div className="space-y-1.5">
+            <div className={`flex items-center gap-2 ${s.text} mb-1`}>
               <VerdictIcon verdict={verdict} />
               <h3 className="text-2xl font-bold tracking-tight">{verdict}</h3>
             </div>
-            <TrendBadge trend={trend} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <TrendBadge trend={trend} />
+              <ModelBadge model={model_used} />
+            </div>
           </div>
           <div className="text-right shrink-0">
-            <div className={`text-3xl font-bold tabular-nums ${s.text}`}>
-              {confidence_score?.toFixed(1)}%
+            <div className={`flex items-start justify-end gap-1 ${s.text}`}>
+              <span className="text-3xl font-bold tabular-nums">
+                {confidence_score?.toFixed(1)}%
+              </span>
+              <ConfidenceTooltip textClass={s.text} />
             </div>
-            <div className={`text-xs ${s.text} opacity-70`}>Confidence</div>
+            <div className={`text-xs ${s.text} opacity-70 mt-0.5`}>Confidence</div>
           </div>
         </div>
 

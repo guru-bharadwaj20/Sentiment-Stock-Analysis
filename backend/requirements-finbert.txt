@@ -1,0 +1,6 @@
+-r requirements.txt
+# FinBERT optional dependencies — only needed when SENTIMENT_MODEL=finbert
+# torch version: CPU-only build (smaller download, ~200 MB)
+# For GPU support, follow: https://pytorch.org/get-started/locally/
+torch>=2.1.0
+transformers>=4.37.0

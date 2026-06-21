@@ -1,16 +1,61 @@
+import { CheckCircle, Loader } from 'lucide-react';
+
 const Pulse = ({ className }) => (
   <div className={`bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse ${className}`} />
 );
 
+const PIPELINE = [
+  { label: 'Fetching sources',     match: 'Fetching' },
+  { label: 'Deduplicating',        match: 'Deduplicating' },
+  { label: 'Running sentiment',    match: 'Running sentiment' },
+  { label: 'Computing metrics',    match: 'Computing' },
+  { label: 'Rendering dashboard',  match: 'Rendering' },
+];
+
+function PipelineBar({ phase }) {
+  const currentIdx = PIPELINE.findIndex((s) => phase?.includes(s.match));
+  const activeIdx  = currentIdx === -1 ? 0 : currentIdx;
+
+  return (
+    <div className="px-4 py-3 bg-gray-900 dark:bg-gray-800 rounded-xl">
+      <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
+        {PIPELINE.map((step, i) => {
+          const done    = i < activeIdx;
+          const active  = i === activeIdx;
+          const pending = i > activeIdx;
+          return (
+            <div key={step.label} className="flex items-center gap-1 sm:gap-2">
+              <div className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                done    ? 'text-green-400' :
+                active  ? 'text-white' :
+                          'text-gray-500'
+              }`}>
+                {done ? (
+                  <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                ) : active ? (
+                  <Loader className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                ) : (
+                  <span className="w-3.5 h-3.5 rounded-full border border-gray-600 shrink-0 inline-block" />
+                )}
+                <span className={pending ? 'hidden sm:inline' : ''}>{step.label}</span>
+              </div>
+              {i < PIPELINE.length - 1 && (
+                <span className={`text-gray-600 text-xs hidden sm:inline ${done ? 'text-gray-500' : ''}`}>
+                  →
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function LoadingSkeleton({ phase }) {
   return (
     <div className="space-y-5 animate-fadeIn">
-      {phase && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 dark:bg-gray-700 rounded-xl text-white text-sm font-medium">
-          <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
-          {phase}
-        </div>
-      )}
+      <PipelineBar phase={phase} />
 
       {/* Analytics cards skeleton */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">

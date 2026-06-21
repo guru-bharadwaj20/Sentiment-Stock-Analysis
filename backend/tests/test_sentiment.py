@@ -1,6 +1,6 @@
-"""Tests for VADER sentiment scoring and financial lexicon."""
+"""Tests for VADER sentiment scoring, financial lexicon, and score_article weighting."""
 import pytest
-from services.sentiment import score, weighted_score, get_verdict, recency_multiplier
+from services.sentiment import score, score_article, weighted_score, get_verdict, recency_multiplier
 
 
 def test_positive_headline():
@@ -63,8 +63,46 @@ def test_get_verdict_thresholds():
     assert get_verdict(-0.30) == "STRONG SELL"
 
 
-def test_get_verdict_boundaries():
-    assert get_verdict(0.20) == "STRONG BUY"
-    assert get_verdict(0.05) == "BUY"
-    assert get_verdict(-0.05) == "SELL"
-    assert get_verdict(-0.20) == "STRONG SELL"
+def test_get_verdict_strict_boundaries():
+    # Thresholds are strict (>), so exact boundary values fall to the lower tier
+    assert get_verdict(0.201) == "STRONG BUY"
+    assert get_verdict(0.200) == "BUY"       # 0.20 is NOT > 0.20
+    assert get_verdict(0.051) == "BUY"
+    assert get_verdict(0.050) == "HOLD"      # 0.05 is NOT > 0.05
+    assert get_verdict(-0.050) == "HOLD"     # -0.05 is NOT < -0.05
+    assert get_verdict(-0.051) == "SELL"
+    assert get_verdict(-0.200) == "SELL"     # -0.20 is NOT < -0.20
+    assert get_verdict(-0.201) == "STRONG SELL"
+
+
+# ── score_article: weighted headline + description ─────────────
+
+def test_score_article_headline_only():
+    s = score_article("Tesla beats earnings estimates", None)
+    assert isinstance(s, float)
+
+
+def test_score_article_headline_empty_summary():
+    s = score_article("Tesla beats earnings estimates", "")
+    h = score("Tesla beats earnings estimates")
+    # Without summary, should equal headline score
+    assert abs(s - h) < 1e-6
+
+
+def test_score_article_weighted_blend():
+    # Strong positive headline + negative description → blended result
+    h = score("Incredible record profits announced today")
+    d = score("However analysts warn of significant risks and losses ahead")
+    combined = score_article("Incredible record profits announced today",
+                             "However analysts warn of significant risks and losses ahead")
+    expected = 0.4 * h + 0.6 * d
+    assert abs(combined - expected) < 1e-6, f"Expected {expected:.4f}, got {combined:.4f}"
+
+
+def test_score_article_positive_description_pulls_up():
+    # Neutral headline + strongly positive description → net positive
+    s = score_article(
+        "Company releases quarterly report",
+        "Record-breaking profits beat all analyst estimates by wide margin with bullish outlook"
+    )
+    assert s > 0.05, f"Positive description should pull score up, got {s}"

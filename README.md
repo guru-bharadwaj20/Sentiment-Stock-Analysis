@@ -1,6 +1,14 @@
 # Stock Sentiment Analyzer
 
-> Production-grade real-time market sentiment analysis — 7 concurrent async news sources, VADER NLP with financial lexicon, fuzzy deduplication, source contribution breakdown, sentiment trend tracking, background scheduler, dark mode, export, and full CI/CD.
+[![CI](https://github.com/guru-bharadwaj20/Sentiment_Stock_Analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/guru-bharadwaj20/Sentiment_Stock_Analysis/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.11-3776ab?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=black)](https://react.dev/)
+[![Node](https://img.shields.io/badge/Node-20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ed?logo=docker&logoColor=white)](docker-compose.yml)
+
+> Production-grade real-time market sentiment analysis — 7 concurrent async news sources, VADER NLP (+ optional FinBERT) with financial lexicon, 0.4/0.6 headline/description weighting, fuzzy deduplication, source contribution breakdown, sentiment trend tracking, background scheduler, dark mode, export (JSON/CSV/PDF), and full CI/CD.
 
 ---
 
@@ -13,16 +21,19 @@ The system fetches news in parallel from 7 independent sources, fuzzy-deduplicat
 | Feature | Implementation |
 |---------|---------------|
 | Concurrent I/O | `httpx.AsyncClient` + `asyncio.gather` across 7 sources |
-| Deduplication | MD5 hash (exact) + SequenceMatcher (fuzzy, 0.82 threshold) |
+| Deduplication | MD5 hash (exact) + SequenceMatcher fuzzy (0.82 threshold); strips source suffixes, ticker exchange codes |
 | Source health | Per-fetcher timing, status, and article count tracked in every response |
-| Source contribution | Weighted contribution % per source with avg sentiment breakdown |
-| Source weighting | Per-source reliability multiplier (0.75–1.00) applied before aggregation |
-| Financial NLP | VADER lexicon extended with 40+ financial domain terms |
-| Confidence model | 6-factor weighted formula (magnitude, consensus, volume, reliability, recency, stability) |
+| Source contribution | Weighted %, avg sentiment, article count, avg article age per source |
+| Source weighting | Reuters/Bloomberg 1.0 → Bing/Marketaux 0.80; unknown sources default to 0.65 |
+| Financial NLP | VADER lexicon extended with 40+ financial domain terms; headline 40% + description 60% weighting |
+| Dual-mode sentiment | VADER (default, <1 ms/article) or FinBERT via `SENTIMENT_MODEL=finbert` (ProsusAI/finbert, batch inference) |
+| Confidence model | 6-factor weighted formula (magnitude 35%, consensus 25%, volume 15%, reliability 10%, recency 10%, stability 5%) |
 | Sentiment trend | Compares current run vs previous SQLite entry — improving / deteriorating / stable |
-| Background scheduler | Hourly asyncio task refreshes 8 predefined tickers automatically |
+| Historical analytics | Rolling 7/30-day avg sentiment, 3-point moving avg, best/worst run, verdict distribution |
+| Background scheduler | Hourly asyncio task; skips cache-fresh tickers; retries once on failure; exposes per-ticker last_refresh |
 | Performance timing | Fetch / dedup / scoring / aggregation breakdown returned in every response |
-| Caching | In-process TTL cache (5 min, configurable) — zero-latency repeat queries |
+| Cache metadata | age_s and expires_in_s returned with every response (fresh and cached alike) |
+| Standardized errors | All error paths return `{"success": false, "error": {"code": "...", "message": "...", "details": ...}}` |
 | Persistence | SQLite history — verdict + confidence trend visible across runs |
 | Export | Frontend JSON / CSV download of full analysis and top headlines |
 | Dark mode | System-preference-aware theme with localStorage persistence |

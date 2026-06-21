@@ -16,8 +16,23 @@ from typing import Any
 
 FUZZY_THRESHOLD: float = 0.82
 
+# Source attribution suffixes appended by news aggregators (e.g. "Tesla beats — Reuters")
+_SOURCE_SUFFIX_RE = re.compile(
+    r"\s*[-|–]\s*(Reuters|Bloomberg|AP|AFP|CNBC|MarketWatch|WSJ|FT|"
+    r"The Wall Street Journal|Financial Times|Business Wire|PR Newswire)\b.*$",
+    re.IGNORECASE,
+)
+
+# Exchange/market suffixes on tickers (e.g. RELIANCE.NS, HSBA.L, 0700.HK)
+# Match only the dot+extension to avoid length constraints on ticker names.
+_TICKER_SUFFIX_RE = re.compile(r"(?<=[A-Z0-9])\.(NS|BSE|L|HK|T|TO|AX|DE|FR|BO|SI)\b")
+
 
 def _canonical(title: str) -> str:
+    # Strip trailing source attribution before lowercasing
+    title = _SOURCE_SUFFIX_RE.sub("", title)
+    # Strip exchange-suffix tickers
+    title = _TICKER_SUFFIX_RE.sub("", title)
     title = unicodedata.normalize("NFKD", title.lower())
     title = re.sub(r"[^\w\s]", "", title)
     title = re.sub(r"\s+", " ", title).strip()

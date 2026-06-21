@@ -1,18 +1,18 @@
 """Main analysis orchestrator.
 
 Flow:
-    cache hit?  → return cached result
+    cache hit?  → return cached result (with cache age metadata)
     get previous history (for trend)
     fetch stock info + all 7 news sources concurrently (timed)
     deduplicate articles (exact hash + fuzzy similarity)
-    score each article (VADER + recency + source weight) (timed)
+    batch-score articles (VADER or FinBERT depending on SENTIMENT_MODEL)
     compute aggregate metrics (timed)
     compute confidence (6-factor formula)
-    compute per-source contribution
+    compute per-source contribution (with avg age)
     compute trend vs previous run
     generate verdict reasons
     persist to SQLite
-    cache and return
+    cache and return (with cache metadata)
 """
 from __future__ import annotations
 
@@ -23,11 +23,11 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
-from config import MIN_SENTIMENT_THRESHOLD, SOURCE_WEIGHTS, DEFAULT_SOURCE_WEIGHT
+from config import MIN_SENTIMENT_THRESHOLD, SOURCE_WEIGHTS, DEFAULT_SOURCE_WEIGHT, CACHE_TTL_SECONDS
 from fetchers.sources import fetch_all, fetch_stock_info_async
 from services.dedup import deduplicate
 from services import cache as _cache_module
-from services.sentiment import score as vader_score, weighted_score, get_verdict
+from services.sentiment import batch_score, weighted_score, get_verdict, get_model_name
 from db import history as db
 
 logger = logging.getLogger(__name__)
@@ -49,23 +49,22 @@ def _confidence(
     articles_7d: int,
     avg_src_weight: float,
 ) -> float:
-    """
-    Multi-factor confidence score (0–100).
+    """Multi-factor confidence score (0–100).
 
     Weights:
-        Signal magnitude  35 %  — how strong is the directional signal
-        Consensus         25 %  — what fraction of articles agree on direction
-        Volume            15 %  — more articles → more reliable estimate
-        Source quality    10 %  — higher-credibility sources → more confidence
-        Recency           10 %  — fresher news matters more
-        Stability          5 %  — low volatility → consistent signal
+        Signal magnitude  35 %
+        Consensus         25 %
+        Volume            15 %
+        Source quality    10 %
+        Recency           10 %
+        Stability          5 %
     """
     magnitude  = min(abs(avg_sentiment) * 2.0, 1.0)
     vol_factor = max(0.0, 1.0 - volatility * 2.0)
     volume     = min(total / 30.0, 1.0)
     recency    = min((articles_24h / max(articles_7d, 1)) * 2.0, 1.0)
 
-    score = (
+    raw = (
         magnitude        * 0.35
         + consensus      * 0.25
         + volume         * 0.15
@@ -74,7 +73,7 @@ def _confidence(
         + vol_factor     * 0.05
     ) * 100.0
 
-    return round(min(score, 100.0), 2)
+    return round(min(raw, 100.0), 2)
 
 
 # ── trend ──────────────────────────────────────────────────────
@@ -95,7 +94,7 @@ def _compute_trend(
             "verdict_changed": False,
         }
 
-    prev = prev_history[0]
+    prev             = prev_history[0]
     sentiment_delta  = avg_sentiment - prev["avg_sentiment"]
     confidence_delta = confidence    - prev["confidence_score"]
 
@@ -182,16 +181,18 @@ async def analyze_ticker(ticker: str) -> dict[str, Any]:
     cached = _cache_module.get(ticker)
     if cached is not None:
         logger.info("Cache hit for %s", ticker)
+        cache_meta = _cache_module.get_meta(ticker)
         cached["cached"] = True
         cached.setdefault("meta", {})["cached"] = True
+        cached["cache_meta"] = cache_meta
         return cached
 
-    logger.info("Starting analysis for %s", ticker)
+    logger.info("Starting analysis for %s (model=%s)", ticker, get_model_name())
 
     # 2. Previous history (before this run — used for trend)
     prev_history = db.get_history(ticker, limit=1)
 
-    # 3. Parallel: stock info + all news (each manages its own httpx client)
+    # 3. Parallel: stock info + all news sources
     t0 = time.perf_counter()
     stock_info, (raw_articles, source_health) = await asyncio.gather(
         fetch_stock_info_async(ticker),
@@ -213,15 +214,15 @@ async def analyze_ticker(ticker: str) -> dict[str, Any]:
     if not raw_articles:
         return _empty_result(ticker, stock_info, source_health, articles_raw, dupes_removed, sources_succeeded)
 
-    # 5. Score each article
+    # 5. Batch-score all articles (efficient for FinBERT via single model call)
     t0 = time.perf_counter()
     now = _utcnow()
+
+    article_pairs = [(art["title"], art.get("summary") or "") for art in raw_articles]
+    compounds_batch = batch_score(article_pairs)
+
     scored: list[dict[str, Any]] = []
-
-    for art in raw_articles:
-        text     = f"{art['title']} {art['summary']}"
-        compound = vader_score(text)
-
+    for art, compound in zip(raw_articles, compounds_batch):
         if abs(compound) < MIN_SENTIMENT_THRESHOLD:
             continue
 
@@ -293,22 +294,24 @@ async def analyze_ticker(ticker: str) -> dict[str, Any]:
     avg_age        = sum(a["hours_old"] for a in scored) / total
     avg_src_weight = sum(src_weights) / total
 
-    # Per-source contribution
+    # Per-source contribution (includes avg article age per source)
     src_stats: dict[str, dict] = {}
     total_weighted_abs = sum(abs(a["weighted"]) for a in scored) or 1.0
     for a in scored:
         src = a["source"]
         if src not in src_stats:
-            src_stats[src] = {"articles": 0, "sentiment_sum": 0.0, "weighted_sum": 0.0}
+            src_stats[src] = {"articles": 0, "sentiment_sum": 0.0, "weighted_sum": 0.0, "age_sum": 0.0}
         src_stats[src]["articles"]      += 1
         src_stats[src]["sentiment_sum"] += a["compound"]
         src_stats[src]["weighted_sum"]  += abs(a["weighted"])
+        src_stats[src]["age_sum"]       += a["hours_old"]
 
     source_contributions = {
         src: {
             "articles":         v["articles"],
             "avg_sentiment":    round(v["sentiment_sum"] / v["articles"], 4),
             "contribution_pct": round(v["weighted_sum"] / total_weighted_abs * 100, 1),
+            "avg_age_hours":    round(v["age_sum"] / v["articles"], 1),
         }
         for src, v in src_stats.items()
     }
@@ -366,6 +369,7 @@ async def analyze_ticker(ticker: str) -> dict[str, Any]:
         "verdict":             verdict,
         "confidence_score":    confidence,
         "verdict_reasons":     reasons,
+        "model_used":          get_model_name(),
         "stats":               {"bullish": bullish_count, "bearish": bearish_count, "neutral": neutral_count},
         "top_comments":        top_comments,
         "stock_info":          stock_info,
@@ -396,6 +400,10 @@ async def analyze_ticker(ticker: str) -> dict[str, Any]:
             "sources_total":      len(source_health),
             "cached":             False,
         },
+        "cache_meta": {
+            "age_s":        0.0,
+            "expires_in_s": float(CACHE_TTL_SECONDS),
+        },
         "timing": {
             "fetch_s":        round(fetch_s,   3),
             "dedup_ms":       round(dedup_ms,  1),
@@ -424,6 +432,7 @@ def _empty_result(
         "verdict":             "INSUFFICIENT DATA",
         "confidence_score":    0.0,
         "verdict_reasons":     ["No articles with meaningful sentiment were found"],
+        "model_used":          get_model_name(),
         "stats":               {"bullish": 0, "bearish": 0, "neutral": 0},
         "top_comments":        [],
         "stock_info":          stock_info,
@@ -444,7 +453,8 @@ def _empty_result(
             "sources_total":      len(source_health),
             "cached":             False,
         },
-        "timing":  None,
-        "history": db.get_history(ticker),
-        "cached":  False,
+        "cache_meta":  None,
+        "timing":      None,
+        "history":     db.get_history(ticker),
+        "cached":      False,
     }

@@ -17,7 +17,7 @@ function downloadBlob(blob, filename) {
 
 export default function Dashboard({ data }) {
   const { stats, top_comments, advanced_stats, history, meta, timing, cached,
-          source_contributions, source_health } = data;
+          cache_meta, source_contributions, source_health } = data;
   const totalArticles = (stats?.bullish ?? 0) + (stats?.bearish ?? 0) + (stats?.neutral ?? 0);
   const dateStr = new Date().toISOString().split('T')[0];
 
@@ -40,16 +40,24 @@ export default function Dashboard({ data }) {
       const csv = rows.map((r) => r.join(',')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
       downloadBlob(blob, `${data.ticker}_headlines_${dateStr}.csv`);
+    } else if (format === 'pdf') {
+      window.print();
     }
   };
 
   return (
-    <div className="space-y-5 animate-fadeIn">
+    <div className="space-y-5 animate-fadeIn" id="dashboard-print-area">
       {/* Verdict + stock info */}
       <VerdictCard data={data} />
 
       {/* Analytics meta-cards */}
-      <AnalyticsCards meta={meta} timing={timing} cached={cached} onExport={handleExport} />
+      <AnalyticsCards
+        meta={meta}
+        timing={timing}
+        cached={cached}
+        cache_meta={cache_meta}
+        onExport={handleExport}
+      />
 
       {/* 4 metric cards + bull/neutral/bear bars */}
       <MetricCards advanced_stats={advanced_stats} stats={stats} />
@@ -90,9 +98,9 @@ export default function Dashboard({ data }) {
           </div>
           <ul className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
             {[
-              [Signal,    'VADER NLP with financial domain lexicon (40+ custom terms)'],
+              [Signal,    'VADER NLP with 40+ financial-domain lexicon terms (upgrades/beats/bankruptcy …)'],
               [Newspaper, '7 concurrent sources: Google, Yahoo, Bing, Finnhub, Marketaux, Seeking Alpha, Alpha Vantage'],
-              [Target,    'Source-reliability weighting (Finnhub 1.0 → Bing/Marketaux 0.75)'],
+              [Target,    'Headline scored at 40%, article description at 60% (VADER) — or FinBERT concatenation'],
               [Zap,       'Confidence: signal magnitude (35%) + consensus (25%) + volume (15%) + reliability (10%) + recency (10%) + stability (5%)'],
             ].map(([Icon, text], i) => (
               <li key={i} className="flex items-start gap-2">
