@@ -1,65 +1,85 @@
 # Stock Sentiment Analyzer
 
-> Real-time market sentiment analysis aggregating 7 concurrent news sources with VADER NLP, source-reliability weighting, deduplication, TTL caching, and SQLite persistence.
+> Production-grade real-time market sentiment analysis — 7 concurrent async news sources, VADER NLP with financial lexicon, fuzzy deduplication, source contribution breakdown, sentiment trend tracking, background scheduler, dark mode, export, and full CI/CD.
 
 ---
 
 ## Overview
 
-The system fetches news in parallel from 7 independent sources, deduplicates repeated stories, scores each article with a financial-domain-enhanced VADER model, and aggregates the results into a single verdict with detailed reasoning — all within 5–10 seconds.
+The system fetches news in parallel from 7 independent sources, fuzzy-deduplicates repeated stories, scores each article with a domain-enhanced VADER model, and aggregates the results into a single verdict with detailed reasoning, per-source contribution analysis, and trend tracking — all within 5–10 seconds on first fetch, < 1 ms on cache hit.
 
 **What makes it technically interesting:**
 
 | Feature | Implementation |
 |---------|---------------|
 | Concurrent I/O | `httpx.AsyncClient` + `asyncio.gather` across 7 sources |
-| Deduplication | Normalized-title MD5 hashing to eliminate wire-duplicated stories |
-| Source weighting | Per-source reliability multiplier applied before aggregation |
+| Deduplication | MD5 hash (exact) + SequenceMatcher (fuzzy, 0.82 threshold) |
+| Source health | Per-fetcher timing, status, and article count tracked in every response |
+| Source contribution | Weighted contribution % per source with avg sentiment breakdown |
+| Source weighting | Per-source reliability multiplier (0.75–1.00) applied before aggregation |
 | Financial NLP | VADER lexicon extended with 40+ financial domain terms |
 | Confidence model | 6-factor weighted formula (magnitude, consensus, volume, reliability, recency, stability) |
-| Caching | In-process TTL cache (5 min) — repeated queries never hit the network |
-| Persistence | SQLite history — verdict trend visible across analysis runs |
-| Type safety | Full Pydantic response models on the API; structured logging throughout |
+| Sentiment trend | Compares current run vs previous SQLite entry — improving / deteriorating / stable |
+| Background scheduler | Hourly asyncio task refreshes 8 predefined tickers automatically |
+| Performance timing | Fetch / dedup / scoring / aggregation breakdown returned in every response |
+| Caching | In-process TTL cache (5 min, configurable) — zero-latency repeat queries |
+| Persistence | SQLite history — verdict + confidence trend visible across runs |
+| Export | Frontend JSON / CSV download of full analysis and top headlines |
+| Dark mode | System-preference-aware theme with localStorage persistence |
+| Search autocomplete | Fuzzy prefix matching on 40+ predefined tickers with keyboard navigation |
+| Type safety | Full Pydantic v2 response models; structured logging throughout |
+| Container-ready | Dockerfile (backend + frontend) + docker-compose.yml |
+| CI/CD | GitHub Actions: lint → test → build → Docker smoke test |
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  React 18 Frontend  (Vite · Tailwind CSS · Recharts)             │
-│                                                                  │
-│  useAnalysis hook  →  api.js  →  POST /analyze/{ticker}          │
-└──────────────────────┬───────────────────────────────────────────┘
-                       │ JSON
-┌──────────────────────▼───────────────────────────────────────────┐
-│  FastAPI  (uvicorn)                                              │
-│                                                                  │
-│  /analyze/{ticker}                                               │
-│      │                                                           │
-│      ├─ TTL cache hit? → return immediately                      │
-│      │                                                           │
-│      └─ asyncio.gather ─────────────────────────────────────┐   │
-│              │                                              │   │
-│    ┌─────────▼─────────────────────────────────────────┐   │   │
-│    │  7 httpx.AsyncClient fetchers (concurrent)        │   │   │
-│    │  Google RSS · Bing RSS · Yahoo scrape             │   │   │
-│    │  Finnhub API · Marketaux API                      │   │   │
-│    │  Seeking Alpha RSS · Alpha Vantage API            │   │   │
-│    └─────────┬─────────────────────────────────────────┘   │   │
-│              │ raw articles                                │   │
-│              ▼                                              │   │
-│    deduplicate (MD5 title hash)                             │   │
-│              │                                              │   │
-│              ▼                                              │   │
-│    VADER score × recency_weight × source_weight             │   │
-│              │                                              │   │
-│              ▼                                              │   │
-│    aggregate → verdict + confidence + reasons               │   │
-│              │                                              │   │
-│    SQLite (sentiment_history.db) ◄──────────────────────────┘   │
-│    TTL cache ← set                                               │
-└──────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│  React 18 Frontend  (Vite · Tailwind CSS · Recharts)          │
+│                                                               │
+│  useAnalysis hook → api.js → GET /analyze/{ticker}            │
+│  useTheme hook → dark/light toggle persisted to localStorage  │
+│  SearchBar with fuzzy autocomplete from 40+ predefined stocks │
+│  AnalyticsCards · SourceContribution · TrendBadge             │
+│  Export: JSON / CSV download (no backend round-trip)          │
+└─────────────────────┬─────────────────────────────────────────┘
+                      │ JSON
+┌─────────────────────▼─────────────────────────────────────────┐
+│  FastAPI  (uvicorn)                                           │
+│                                                               │
+│  GET /analyze/{ticker}                                        │
+│      │                                                        │
+│      ├─ TTL cache hit? → return in < 1 ms                    │
+│      │                                                        │
+│      └─ asyncio.gather ──────────────────────────────────┐   │
+│              │                                           │   │
+│    ┌─────────▼──────────────────────────────────────┐   │   │
+│    │  7 httpx.AsyncClient fetchers (concurrent)    │   │   │
+│    │  Google RSS · Bing RSS · Yahoo Finance scrape │   │   │
+│    │  Finnhub API · Marketaux API                  │   │   │
+│    │  Seeking Alpha RSS · Alpha Vantage API        │   │   │
+│    │  Per-fetcher: timing + status → source_health │   │   │
+│    └─────────┬──────────────────────────────────────┘   │   │
+│              │ raw articles                              │   │
+│              ▼                                           │   │
+│    MD5 hash dedup + SequenceMatcher fuzzy (0.82)         │   │
+│              │                                           │   │
+│              ▼                                           │   │
+│    VADER score × recency_weight × source_weight          │   │
+│              │                                           │   │
+│              ▼                                           │   │
+│    aggregate → per-source contribution %                 │   │
+│    compare vs prev SQLite run → trend direction          │   │
+│    verdict + confidence + reasons                        │   │
+│              │                                           │   │
+│    SQLite (sentiment_history.db) ◄────────────────────────┘   │
+│    TTL cache ← set                                            │
+│                                                               │
+│  Background Scheduler (asyncio task)                          │
+│      every 60 min: refresh 8 predefined tickers              │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -68,27 +88,27 @@ The system fetches news in parallel from 7 independent sources, deduplicates rep
 
 ### Backend
 
-| | |
-|--|--|
-| **FastAPI 0.109** | Async REST framework |
-| **Uvicorn** | ASGI server |
-| **httpx 0.26** | Async HTTP client — replaces requests + ThreadPoolExecutor |
-| **vaderSentiment 3.3** | NLP engine, extended with 40+ financial lexicon entries |
-| **BeautifulSoup4** | Yahoo Finance HTML parsing |
-| **feedparser 6.0** | RSS/Atom parsing (Google, Bing, Seeking Alpha) |
-| **pydantic 2.5** | Request validation + response models |
-| **sqlite3** | stdlib — no ORM overhead |
+| Package | Version | Role |
+|---------|---------|------|
+| FastAPI | 0.109 | Async REST framework |
+| Uvicorn | 0.27 | ASGI server |
+| httpx | 0.26 | Async HTTP client |
+| vaderSentiment | 3.3 | NLP engine + financial lexicon |
+| BeautifulSoup4 | 4.12 | Yahoo Finance HTML parsing |
+| feedparser | 6.0 | RSS/Atom parsing |
+| Pydantic | 2.5 | Request validation + response models |
+| sqlite3 | stdlib | History persistence |
 
 ### Frontend
 
-| | |
-|--|--|
-| **React 18** | UI framework |
-| **Vite 7** | Build tool |
-| **Tailwind CSS 3** | Styling |
-| **Recharts 2** | Radar, pie, bar, and line charts |
-| **Axios** | HTTP client |
-| **Lucide React** | Icons |
+| Package | Role |
+|---------|------|
+| React 18 | UI framework |
+| Vite 7 | Build tool |
+| Tailwind CSS 3 | Utility-first styling (dark mode via `class` strategy) |
+| Recharts 2 | Radar, pie, bar, line, history charts |
+| Lucide React | Icons |
+| Axios | HTTP client |
 
 ---
 
@@ -96,87 +116,107 @@ The system fetches news in parallel from 7 independent sources, deduplicates rep
 
 ```
 Sentiment_Stock_Analysis/
+├── docker-compose.yml
+├── .github/
+│   └── workflows/ci.yml         # lint → test → build → Docker smoke test
 │
 ├── backend/
-│   ├── main.py               # FastAPI app + CORS + startup
-│   ├── config.py             # All constants and source weights
+│   ├── main.py                  # FastAPI app + CORS + startup (DB + scheduler)
+│   ├── config.py                # All constants, source weights, scheduler config
+│   ├── scheduler.py             # Background asyncio task — hourly ticker refresh
 │   ├── requirements.txt
+│   ├── requirements-dev.txt     # + pytest, pytest-asyncio
+│   ├── pytest.ini
+│   ├── Dockerfile
 │   │
 │   ├── api/
-│   │   └── routes.py         # /analyze, /history, /cache
+│   │   └── routes.py            # /analyze, /history, /cache, /scheduler/status
 │   │
 │   ├── models/
-│   │   └── schemas.py        # Pydantic response models
+│   │   └── schemas.py           # Pydantic v2 response models
 │   │
 │   ├── fetchers/
-│   │   └── sources.py        # 7 async httpx fetchers + fetch_all()
+│   │   └── sources.py           # 7 async fetchers + health/timing tracking
 │   │
 │   ├── services/
-│   │   ├── analyzer.py       # Orchestration: fetch → dedup → score → cache → persist
-│   │   ├── sentiment.py      # VADER scoring, financial lexicon, recency weighting
-│   │   ├── cache.py          # TTL in-memory cache
-│   │   └── dedup.py          # Normalized-title deduplication
+│   │   ├── analyzer.py          # Orchestration: fetch → dedup → score → trend → cache → persist
+│   │   ├── sentiment.py         # VADER + financial lexicon + recency weighting
+│   │   ├── cache.py             # In-process TTL dict cache
+│   │   └── dedup.py             # MD5 (exact) + SequenceMatcher (fuzzy) dedup
 │   │
-│   └── db/
-│       └── history.py        # SQLite persistence
+│   ├── db/
+│   │   └── history.py           # SQLite persistence
+│   │
+│   └── tests/
+│       ├── test_sentiment.py    # 12 tests: scoring, lexicon, recency, verdict thresholds
+│       ├── test_dedup.py        # 10 tests: exact, case, fuzzy, count
+│       ├── test_analyzer.py     # 12 tests: confidence, reasons, trend
+│       └── test_api.py          # 8 async integration tests via httpx + ASGITransport
 │
 └── frontend/
+    ├── Dockerfile
+    ├── nginx.conf
     └── src/
-        ├── App.jsx                       # Composition root
+        ├── App.jsx                      # Composition root + dark mode toggle
         ├── main.jsx
-        ├── index.css
-        │
-        ├── constants/
-        │   └── stocks.js                 # 40+ stocks across 6 markets
-        │
-        ├── services/
-        │   └── api.js                    # Axios wrappers
+        ├── index.css                    # Tailwind + dark scrollbar + animations
         │
         ├── hooks/
-        │   └── useAnalysis.js            # Analysis state + progress phases
+        │   ├── useAnalysis.js           # Analysis state + staged progress phases
+        │   └── useTheme.js              # Dark/light toggle persisted to localStorage
+        │
+        ├── constants/
+        │   └── stocks.js                # 40+ stocks across 6 markets
+        │
+        ├── services/
+        │   └── api.js                   # Axios wrappers
         │
         └── components/
-            ├── SearchBar.jsx
-            ├── Sidebar.jsx               # Desktop + mobile variants
-            ├── LoadingSkeleton.jsx       # Animated placeholder dashboard
+            ├── SearchBar.jsx            # Input + fuzzy autocomplete dropdown
+            ├── Sidebar.jsx              # Desktop + mobile variants (dark mode)
+            ├── LoadingSkeleton.jsx      # Animated placeholder dashboard
             └── Dashboard/
-                ├── index.jsx             # Composition
-                ├── VerdictCard.jsx       # Verdict + confidence + reasons + stock info
-                ├── MetricCards.jsx       # 4 KPI cards + bull/neutral/bear bars
-                ├── Charts.jsx            # Radar, time-based, pie, source, trend, history
-                └── Headlines.jsx         # Clickable headlines with source/recency badges
+                ├── index.jsx            # Composition + JSON/CSV export handler
+                ├── VerdictCard.jsx      # Verdict + confidence + TrendBadge
+                ├── AnalyticsCards.jsx   # Articles scanned, dupes, sources, cache, time, export
+                ├── MetricCards.jsx      # 4 KPI cards + bull/neutral/bear bars
+                ├── SourceContribution.jsx  # Per-source %, avg sentiment, health icons
+                ├── Charts.jsx           # Radar, time, pie, source bar, trend line, history
+                └── Headlines.jsx        # Clickable headlines with source/recency badges
 ```
 
 ---
 
-## Installation
+## Quick Start
 
-### Prerequisites
-
-- Python 3.9+
-- Node.js 18+
-
-### Backend
+### Option A — Docker (recommended)
 
 ```bash
+git clone https://github.com/guru-bharadwaj20/Sentiment_Stock_Analysis
+cd Sentiment_Stock_Analysis
+docker compose up --build
+```
+
+- **Frontend:** http://localhost:3000  
+- **Backend API:** http://localhost:8000  
+- **Swagger docs:** http://localhost:8000/docs
+
+### Option B — Local dev
+
+**Backend**
+```bash
 cd backend
-
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate       # macOS / Linux
-venv\Scripts\activate          # Windows
+source venv/bin/activate   # macOS/Linux
+venv\Scripts\activate      # Windows
 
-# Install dependencies (~30 MB, no PyTorch)
 pip install -r requirements.txt
-
-# Start
 uvicorn main:app --reload
 # API:  http://localhost:8000
 # Docs: http://localhost:8000/docs
 ```
 
-### Frontend
-
+**Frontend**
 ```bash
 cd frontend
 npm install
@@ -184,17 +224,27 @@ npm run dev
 # App: http://localhost:5173
 ```
 
-Both servers must run simultaneously. No API keys required.
+**Run tests**
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest tests/ -v
+```
+
+No API keys required. Both servers must run simultaneously.
 
 ### Environment variables (optional)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated allowed origins |
+| `CORS_ORIGINS` | `http://localhost:5173,...` | Comma-separated allowed origins |
 | `CACHE_TTL` | `300` | Cache TTL in seconds |
 | `DB_PATH` | `sentiment_history.db` | SQLite file path |
 | `FETCH_TIMEOUT_CONNECT` | `4` | httpx connect timeout (s) |
 | `FETCH_TIMEOUT_READ` | `7` | httpx read timeout (s) |
+| `SCHEDULER_ENABLED` | `true` | Enable background refresh scheduler |
+| `SCHEDULER_INTERVAL` | `60` | Scheduler interval in minutes |
+| `SCHEDULED_TICKERS` | `TSLA,AAPL,...` | Comma-separated tickers to pre-warm |
 | `VITE_API_URL` | `http://localhost:8000` | Backend URL for the frontend |
 
 ---
@@ -202,19 +252,15 @@ Both servers must run simultaneously. No API keys required.
 ## API Reference
 
 ### `GET /`
-Health check.
-
 ```json
-{ "status": "ok", "version": "2.0.0", "cache_entries": 3 }
+{ "status": "ok", "version": "3.0.0", "cache_entries": 3 }
 ```
 
 ### `GET /analyze/{ticker}`
 
 Full sentiment analysis. Cached for 5 minutes per ticker.
 
-**Path param:** `ticker` — 1–15 chars, letters/digits/`.`/`-` only.
-
-**Response:**
+**Response (key fields):**
 ```json
 {
   "ticker": "TSLA",
@@ -222,51 +268,48 @@ Full sentiment analysis. Cached for 5 minutes per ticker.
   "confidence_score": 64.3,
   "verdict_reasons": [
     "71% of articles are bullish",
-    "Average sentiment is moderately positive (+0.18)",
-    "Positive momentum — recent articles more bullish than older ones",
-    "Active recent coverage (12 articles in last 24 h)"
+    "Average sentiment is moderately positive (+0.18)"
   ],
-  "stats": { "bullish": 22, "bearish": 6, "neutral": 3 },
-  "top_comments": [{
-    "text": "Tesla Q2 deliveries beat expectations by 8%",
-    "score": 0.847,
-    "sentiment": "bullish",
-    "source": "Finnhub",
-    "source_weight": 1.0,
-    "time_ago": "2h ago",
-    "hours_old": 2.1,
-    "url": "https://..."
-  }],
-  "stock_info": { "name": "Tesla, Inc.", "sector": "Consumer Cyclical", "current_price": 248.5 },
-  "advanced_stats": {
-    "avg_sentiment": 0.2341,
-    "weighted_sentiment": 0.3812,
-    "volatility": 0.1613,
-    "momentum": 0.0954,
-    "sentiment_24h": 0.2780,
-    "sentiment_7d": 0.2010,
-    "articles_24h": 12,
-    "articles_7d": 31,
-    "bullish_ratio": 0.710,
-    "bearish_ratio": 0.194,
-    "neutral_ratio": 0.097,
-    "consensus_strength": 0.710,
-    "avg_article_age_hours": 18.4,
-    "total_articles": 31,
-    "deduplicated_count": 31
+  "trend": {
+    "direction": "improving",
+    "sentiment_delta": 0.0842,
+    "confidence_delta": 3.2,
+    "prev_verdict": "HOLD",
+    "verdict_changed": true
   },
-  "history": [
-    { "timestamp": "2026-06-21T08:12:00+00:00", "verdict": "BUY", "confidence_score": 61.2, "avg_sentiment": 0.21 }
+  "source_contributions": {
+    "Finnhub": { "articles": 8, "avg_sentiment": 0.42, "contribution_pct": 31.2 },
+    "Google News": { "articles": 12, "avg_sentiment": 0.18, "contribution_pct": 28.1 }
+  },
+  "source_health": [
+    { "name": "Finnhub", "status": "ok", "duration_ms": 312, "articles": 12 },
+    { "name": "Marketaux", "status": "error", "duration_ms": 7001, "articles": 0, "error": "TimeoutException" }
   ],
+  "meta": {
+    "articles_raw": 82, "duplicates_removed": 11,
+    "sources_succeeded": 6, "sources_total": 7, "cached": false
+  },
+  "timing": {
+    "fetch_s": 3.21, "dedup_ms": 4.1, "scoring_ms": 18.3,
+    "aggregation_ms": 2.0, "total_s": 3.64
+  },
+  "stats": { "bullish": 22, "bearish": 6, "neutral": 3 },
+  "advanced_stats": { "avg_sentiment": 0.2341, "volatility": 0.1613, "momentum": 0.0954, ... },
+  "history": [{ "timestamp": "...", "verdict": "HOLD", "confidence_score": 61.2, "avg_sentiment": 0.15 }],
   "cached": false
 }
 ```
 
 ### `GET /history/{ticker}?limit=8`
-Returns previous analysis runs for a ticker from SQLite.
+Previous analysis runs for a ticker from SQLite.
 
 ### `DELETE /cache`
 Clears the in-memory TTL cache.
+
+### `GET /scheduler/status`
+```json
+{ "active": true, "tickers": ["TSLA", "AAPL", "NVDA", ...], "count": 8 }
+```
 
 ---
 
@@ -275,29 +318,26 @@ Clears the in-memory TTL cache.
 ### Pipeline
 
 ```
-7 sources (asyncio.gather)
+7 sources (asyncio.gather — all concurrent, per-fetcher timing tracked)
     │
-    ▼ raw articles (titles + summaries + timestamps)
-deduplicate (MD5 of normalized title)
+    ▼ raw articles
+MD5 hash dedup (exact) → SequenceMatcher fuzzy dedup (threshold 0.82)
     │
     ▼ unique articles
 for each article:
     clean_text() → strip URLs, HTML, normalize unicode
     VADER compound score  c ∈ [-1.0, 1.0]  (financial lexicon applied)
     if |c| < 0.02: discard
-    recency_mult = log(max(1, 7 - days_old) + 1)   # 0.69 – 2.08
+    recency_mult = log(max(1, 7 − days_old) + 1)   # 0.69 – 2.08
     source_weight = SOURCE_WEIGHTS[source]           # 0.75 – 1.00
     weighted = c × recency_mult × source_weight
     │
     ▼ scored articles
-aggregate metrics
+per-source contribution % (weighted_sum / total_weighted × 100)
+aggregate metrics → verdict + confidence + reasons
+compare vs previous SQLite run → trend direction
     │
-    ▼
-verdict  (based on mean weighted score)
-confidence (6-factor formula)
-reasons  (rule-based text generation)
-    │
-SQLite persist  →  cache set  →  return
+SQLite persist → cache set → return
 ```
 
 ### Verdict thresholds (mean weighted score)
@@ -317,93 +357,22 @@ SQLite persist  →  cache set  →  return
 | Finnhub | 1.00 | Financial-specific news API |
 | Alpha Vantage | 0.95 | Financial news with metadata |
 | Yahoo Finance | 0.90 | High-quality financial publisher |
-| Seeking Alpha | 0.85 | Analyst commentary, slightly opinion-heavy |
-| Google News | 0.80 | General aggregator with broad financial coverage |
+| Seeking Alpha | 0.85 | Analyst commentary |
+| Google News | 0.80 | General aggregator with broad coverage |
 | Bing News | 0.75 | General aggregator |
-| Marketaux | 0.75 | Newer aggregator, less established |
+| Marketaux | 0.75 | Newer aggregator |
 
 ### Confidence formula
 
 ```
 confidence = (
-    min(|avg_sentiment| × 2, 1.0)     × 0.35   # signal magnitude
-  + max(bullish%, bearish%)             × 0.25   # consensus
-  + min(total_articles / 30, 1.0)      × 0.15   # volume
-  + avg_source_weight                   × 0.10   # source quality
+    min(|avg_sentiment| × 2, 1.0)          × 0.35   # signal magnitude
+  + max(bullish_ratio, bearish_ratio)        × 0.25   # consensus
+  + min(total_articles / 30, 1.0)           × 0.15   # volume
+  + avg_source_weight                        × 0.10   # source quality
   + min(articles_24h / articles_7d × 2, 1.0) × 0.10  # recency
-  + max(0, 1 - volatility × 2)         × 0.05   # stability
+  + max(0, 1 − volatility × 2)              × 0.05   # stability
 ) × 100
-```
-
-### Financial lexicon additions to VADER
-
-40+ terms added with custom polarity values:
-
-- **Bullish:** *beat, outperform, upgrade, buyback, rally, surge, breakout, growth, profit, exceed, optimistic, partnership, ipo …*
-- **Bearish:** *miss, downgrade, lawsuit, fraud, bankruptcy, recall, plunge, layoffs, investigation, loss, warning, sanction, default …*
-
----
-
-## Features
-
-### Backend
-- Fully async (FastAPI + httpx + asyncio) — no blocking I/O
-- 7 concurrent news sources with independent timeouts
-- Title-hash deduplication across sources
-- Source-reliability weighted sentiment aggregation
-- Financial-domain VADER lexicon (40+ custom terms)
-- 6-factor confidence score with documented formula
-- Verdict + human-readable reasoning bullets
-- TTL in-memory cache (5 min, configurable)
-- SQLite analysis history per ticker
-- Pydantic v2 response models
-- Structured logging throughout
-- Graceful degradation — source failures never stop the pipeline
-
-### Frontend
-- Animated skeleton loader mirroring the dashboard layout
-- Live progress phase messages during analysis
-- Click-to-analyze stock sidebar (desktop + mobile)
-- Verdict card with confidence progress bar + reasoning bullets
-- Clickable headlines linking to original articles
-- Source reliability stars on each headline
-- Radar, pie, bar, trend-line charts (Recharts)
-- Previous runs history panel
-- Responsive — full sidebar on desktop, collapsible panel on mobile
-- Accessible: ARIA labels, keyboard navigation, focus states
-
----
-
-## Development
-
-```bash
-# Backend
-cd backend
-uvicorn main:app --reload          # http://localhost:8000/docs for Swagger
-
-# Frontend
-cd frontend
-npm run dev       # HMR dev server
-npm run build     # Production bundle → dist/
-npm run preview   # Preview production build
-npm run lint      # ESLint
-```
-
----
-
-## Deployment
-
-**Backend**
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-# Set CORS_ORIGINS to your deployed frontend URL
-```
-
-**Frontend**
-```bash
-cd frontend
-VITE_API_URL=https://your-api.example.com npm run build
-# Deploy dist/ to Vercel, Netlify, Cloudflare Pages, or any static host
 ```
 
 ---
@@ -413,10 +382,13 @@ VITE_API_URL=https://your-api.example.com npm run build
 | Decision | Choice | Why |
 |----------|--------|-----|
 | Async HTTP | httpx + asyncio.gather | True async I/O; shared connection pool; cleaner than ThreadPoolExecutor + requests |
-| Sentiment model | VADER + financial lexicon | FinBERT is 100–500× slower without a GPU; VADER at ~1 ms/article is sufficient for this workload |
+| Sentiment | VADER + financial lexicon | FinBERT is 100–500× slower without GPU; VADER at ~1 ms/article is the right call here |
 | Storage | SQLite (stdlib) | No ORM overhead; single-file deployment; sufficient for historical trend display |
 | Cache | In-process TTL dict | Redis would be overkill; in-process cache is zero-latency and trivially correct at 1-worker scale |
-| Dedup | MD5 of normalized title | Fuzzy matching is slower and unnecessary; exact-title collisions catch 95%+ of wire-duplicate stories |
+| Dedup | MD5 exact + SequenceMatcher fuzzy | Exact hash catches 90%+ of duplicates instantly; fuzzy at 0.82 threshold catches near-duplicates without false positives |
+| Scheduler | asyncio background task | No extra dependency; starts after DB init in the startup event; throttles 30s between tickers |
+| Dark mode | Tailwind `class` strategy | Allows JS-controlled toggling with localStorage persistence and system preference detection |
+| Export | Frontend-only JSON/CSV | No extra API endpoint; consistent with what the user sees; works offline (after data loaded) |
 
 ---
 
@@ -425,10 +397,11 @@ VITE_API_URL=https://your-api.example.com npm run build
 | Problem | Fix |
 |---------|-----|
 | Backend won't start | Activate venv; `pip install -r requirements.txt` |
-| CORS error | Both servers on 8000 and 5173; check `CORS_ORIGINS` env var |
-| `INSUFFICIENT DATA` verdict | Ticker has limited coverage; try TSLA or AAPL first |
-| Slow responses | Some demo API tiers rate-limit; first request after cache expiry takes 5–10 s |
-| SQLite locked | Only one uvicorn worker should write; use `--workers 1` in dev |
+| CORS error | Both servers running on 8000 and 5173; check `CORS_ORIGINS` env var |
+| `INSUFFICIENT DATA` | Ticker has limited coverage; try TSLA or AAPL first |
+| Slow first request | Some demo API tiers rate-limit; first request after cache expiry takes 5–10 s |
+| Tests fail on import | Run `pytest` from inside the `backend/` directory |
+| Docker frontend can't reach backend | Set `VITE_API_URL=http://backend:8000` and ensure services share a Docker network |
 
 ---
 

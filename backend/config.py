@@ -36,3 +36,15 @@ SOURCE_WEIGHTS: dict[str, float] = {
     "Marketaux":     0.75,
 }
 DEFAULT_SOURCE_WEIGHT: float = 0.70
+
+# ── Scheduler ─────────────────────────────────────────────────
+SCHEDULER_ENABLED: bool = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
+SCHEDULER_INTERVAL_MINUTES: int = int(os.getenv("SCHEDULER_INTERVAL", "60"))
+SCHEDULED_TICKERS: list[str] = [
+    t.strip()
+    for t in os.getenv(
+        "SCHEDULED_TICKERS",
+        "TSLA,AAPL,NVDA,MSFT,GOOGL,AMZN,META,AMD",
+    ).split(",")
+    if t.strip()
+]

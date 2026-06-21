@@ -45,6 +45,44 @@ class AdvancedStats(BaseModel):
     deduplicated_count: int
 
 
+class TrendData(BaseModel):
+    direction: str = Field(..., description="improving | deteriorating | stable | new")
+    sentiment_delta: float
+    confidence_delta: float
+    prev_verdict: Optional[str]
+    verdict_changed: bool
+
+
+class SourceContribution(BaseModel):
+    articles: int
+    avg_sentiment: float
+    contribution_pct: float
+
+
+class SourceHealth(BaseModel):
+    name: str
+    status: str = Field(..., description="ok | error")
+    duration_ms: int
+    articles: int
+    error: Optional[str] = None
+
+
+class AnalysisMeta(BaseModel):
+    articles_raw: int
+    duplicates_removed: int
+    sources_succeeded: int
+    sources_total: int
+    cached: bool
+
+
+class TimingInfo(BaseModel):
+    fetch_s: float
+    dedup_ms: float
+    scoring_ms: float
+    aggregation_ms: float
+    total_s: float
+
+
 class HistoryEntry(BaseModel):
     timestamp: str
     verdict: str
@@ -61,6 +99,11 @@ class AnalysisResponse(BaseModel):
     top_comments: list[ArticleResult]
     stock_info: Optional[StockInfo] = None
     advanced_stats: Optional[AdvancedStats] = None
+    trend: Optional[TrendData] = None
+    source_contributions: dict[str, SourceContribution] = {}
+    source_health: list[SourceHealth] = []
+    meta: Optional[AnalysisMeta] = None
+    timing: Optional[TimingInfo] = None
     history: list[HistoryEntry] = []
     cached: bool = False
 

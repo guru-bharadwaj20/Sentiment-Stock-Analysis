@@ -8,6 +8,7 @@ from models.schemas import AnalysisResponse, HealthResponse
 from services import cache as _cache
 from services.analyzer import analyze_ticker
 from db import history as db
+import scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ router = APIRouter()
 async def health():
     return HealthResponse(
         status="ok",
-        version="2.0.0",
+        version="3.0.0",
         cache_entries=_cache.size(),
     )
 
@@ -44,7 +45,6 @@ async def analyze_stock(
 ):
     ticker = ticker.upper().strip()
 
-    # Basic validation — reject clearly invalid symbols
     invalid_chars = set(ticker) - set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-")
     if invalid_chars:
         raise HTTPException(
@@ -78,3 +78,8 @@ async def get_history(
 async def clear_cache():
     _cache.clear()
     return {"message": "Cache cleared"}
+
+
+@router.get("/scheduler/status", tags=["Admin"], summary="Background scheduler state")
+async def get_scheduler_status():
+    return scheduler.status()

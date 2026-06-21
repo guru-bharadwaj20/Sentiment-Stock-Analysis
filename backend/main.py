@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router
 from config import CORS_ORIGINS
 from db.history import init as init_db
+import scheduler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,9 +26,9 @@ app = FastAPI(
     description=(
         "Real-time market sentiment analysis aggregating 7 concurrent news sources. "
         "VADER NLP with financial domain lexicon, source-reliability weighting, "
-        "deduplication, TTL caching, and SQLite persistence."
+        "fuzzy deduplication, TTL caching, SQLite persistence, and background scheduler."
     ),
-    version="2.0.0",
+    version="3.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -46,4 +47,5 @@ app.include_router(router)
 @app.on_event("startup")
 async def on_startup() -> None:
     init_db()
+    scheduler.start()
     logger.info("DB initialized. CORS origins: %s", CORS_ORIGINS)

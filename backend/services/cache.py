@@ -46,6 +46,10 @@ def set(ticker: str, value: Any) -> None:
     _cache.set(ticker, value)
 
 
+def delete(ticker: str) -> None:
+    _cache.delete(ticker)
+
+
 def clear() -> None:
     _cache.clear()
 
