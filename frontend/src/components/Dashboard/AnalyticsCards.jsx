@@ -1,7 +1,8 @@
 import { FileText, Copy, Wifi, Database, Timer, Download, Printer, Gauge } from 'lucide-react';
 import { CARD, SEMANTIC } from '../../constants/ui';
 
-function KpiCard({ Icon, label, value, sub, tone }) {
+function KpiCard(props) {
+  const { Icon, label, value, sub, tone } = props;
   return (
     <div className={`${CARD} p-4`}>
       <div className="flex items-center gap-2 mb-2">

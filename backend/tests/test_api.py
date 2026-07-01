@@ -52,7 +52,10 @@ async def test_invalid_ticker_characters():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         r = await client.get("/analyze/INVALID$TICKER!")
     assert r.status_code == 400
-    assert "invalid characters" in r.json()["detail"].lower()
+    data = r.json()
+    assert data["success"] is False
+    assert "code" in data["error"]
+    assert "invalid characters" in data["error"]["message"].lower()
 
 
 async def test_ticker_too_long():

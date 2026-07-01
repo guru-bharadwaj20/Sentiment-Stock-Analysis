@@ -112,12 +112,15 @@ export default function Dashboard({ data }) {
               [Newspaper, '7 concurrent sources: Google, Yahoo, Bing, Finnhub, Marketaux, Seeking Alpha, Alpha Vantage'],
               [Target,    'Headline scored at 40%, article description at 60% (VADER) — or FinBERT concatenation'],
               [Zap,       'Confidence: signal magnitude (35%) + consensus (25%) + volume (15%) + reliability (10%) + recency (10%) + stability (5%)'],
-            ].map(([Icon, text], i) => (
-              <li key={i} className="flex items-start gap-2">
-                <Icon className="w-3.5 h-3.5 mt-0.5 text-gray-400 dark:text-gray-500 shrink-0" />
-                <span>{text}</span>
-              </li>
-            ))}
+            ].map((entry, i) => {
+              const [Icon, text] = entry;
+              return (
+                <li key={i} className="flex items-start gap-2">
+                  <Icon className="w-3.5 h-3.5 mt-0.5 text-gray-400 dark:text-gray-500 shrink-0" />
+                  <span>{text}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
 

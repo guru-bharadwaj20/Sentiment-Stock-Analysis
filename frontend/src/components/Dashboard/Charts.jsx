@@ -190,6 +190,19 @@ function SourcePanel({ top_comments }) {
 
 /* ─ Sentiment trend line ────────────────────────────────────── */
 
+function TrendTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0];
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 text-xs max-w-[200px]">
+      <p className="font-medium text-gray-700 dark:text-gray-300 truncate mb-0.5">{d.payload.title}…</p>
+      <p style={{ color: d.value >= 0 ? SEMANTIC.positive.hex : SEMANTIC.negative.hex }}>
+        Score: {d.value > 0 ? '+' : ''}{d.value?.toFixed(1)}
+      </p>
+    </div>
+  );
+}
+
 function TrendPanel({ top_comments }) {
   const articles = (top_comments ?? []).slice(0, 12);
   const data = articles.map((c, i) => ({
@@ -197,19 +210,6 @@ function TrendPanel({ top_comments }) {
     sentiment: +(c.score * 100).toFixed(2),
     title:     c.text?.slice(0, 40) ?? '',
   }));
-
-  const CustomTip = ({ active, payload }) => {
-    if (!active || !payload?.length) return null;
-    const d = payload[0];
-    return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 text-xs max-w-[200px]">
-        <p className="font-medium text-gray-700 dark:text-gray-300 truncate mb-0.5">{d.payload.title}…</p>
-        <p style={{ color: d.value >= 0 ? SEMANTIC.positive.hex : SEMANTIC.negative.hex }}>
-          Score: {d.value > 0 ? '+' : ''}{d.value?.toFixed(1)}
-        </p>
-      </div>
-    );
-  };
 
   const avg = data.length ? data.reduce((sum, d) => sum + d.sentiment, 0) / data.length : 0;
 
@@ -221,7 +221,7 @@ function TrendPanel({ top_comments }) {
           <LineChart data={data} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
             <XAxis dataKey="index" tick={{ fontSize: 11, fill: '#9ca3af' }} label={{ value: 'Article #', position: 'insideBottom', offset: -2, fontSize: 11, fill: '#9ca3af' }} />
             <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={(v) => `${v > 0 ? '+' : ''}${v}`} />
-            <RcTooltip content={<CustomTip />} />
+            <RcTooltip content={<TrendTooltip />} />
             <ReferenceLine y={0} stroke="#e5e7eb" strokeDasharray="4 3" />
             <Line type="monotone" dataKey="sentiment" stroke="#111827" strokeWidth={2} dot={{ fill: '#111827', r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} />
           </LineChart>
@@ -243,6 +243,12 @@ const VERDICT_COLOR = {
   'INSUFFICIENT DATA': '#d1d5db',
 };
 
+function HistoryDot(props) {
+  const { cx, cy, payload } = props;
+  const color = VERDICT_COLOR[payload.verdict] ?? '#9ca3af';
+  return <circle cx={cx} cy={cy} r={5} fill={color} stroke="white" strokeWidth={1.5} />;
+}
+
 function HistoryPanel({ history }) {
   if (!history?.length) return null;
 
@@ -252,12 +258,6 @@ function HistoryPanel({ history }) {
     sentiment:  Math.round(h.avg_sentiment * 100),
     verdict:    h.verdict,
   }));
-
-  const CustomDot = (props) => {
-    const { cx, cy, payload } = props;
-    const color = VERDICT_COLOR[payload.verdict] ?? '#9ca3af';
-    return <circle cx={cx} cy={cy} r={5} fill={color} stroke="white" strokeWidth={1.5} />;
-  };
 
   return (
     <div className={PANEL}>
@@ -277,7 +277,7 @@ function HistoryPanel({ history }) {
               />
               <Line
                 type="monotone" dataKey="confidence" stroke="#111827" strokeWidth={2}
-                dot={<CustomDot />} activeDot={{ r: 6 }}
+                dot={<HistoryDot />} activeDot={{ r: 6 }}
               />
               <Line
                 type="monotone" dataKey="sentiment" stroke="#6b7280" strokeWidth={1.5}

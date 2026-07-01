@@ -17,7 +17,8 @@ const Card = memo(function Card({ label, value, sub, Icon, colorClass }) {
   );
 });
 
-const SentimentBar = memo(function SentimentBar({ count, total, color, label, Icon }) {
+const SentimentBar = memo(function SentimentBar(props) {
+  const { count, total, color, label, Icon } = props;
   const p = total > 0 ? +((count / total) * 100).toFixed(1) : 0;
   return (
     <div className={`${CARD} p-5`}>

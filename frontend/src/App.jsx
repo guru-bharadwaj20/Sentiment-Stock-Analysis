@@ -41,12 +41,15 @@ export default function App() {
                   [Newspaper,  '7 Sources'],
                   [BarChart3,  'Real-time'],
                   [TrendingUp, '40+ Stocks'],
-                ].map(([Icon, label]) => (
-                  <div key={label} className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium">
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{label}</span>
-                  </div>
-                ))}
+                ].map((entry) => {
+                  const [Icon, label] = entry;
+                  return (
+                    <div key={label} className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-medium">
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{label}</span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Dark mode toggle */}
@@ -115,13 +118,16 @@ export default function App() {
                       [Newspaper, '7 Live Sources', 'Google, Yahoo, Bing, Finnhub, Marketaux, Seeking Alpha & Alpha Vantage, deduplicated in real time'],
                       [Cpu, 'NLP Scoring', 'VADER with a financial lexicon by default, or FinBERT for transformer-grade accuracy'],
                       [Gauge, 'Confidence-Backed Verdicts', 'A 6-factor weighted formula turns raw sentiment into an actionable BUY/HOLD/SELL call'],
-                    ].map(([Icon, title, desc]) => (
-                      <div key={title} className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                        <Icon className="w-4 h-4 text-gray-500 dark:text-gray-400 mb-2" />
-                        <div className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">{title}</div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed">{desc}</div>
-                      </div>
-                    ))}
+                    ].map((entry) => {
+                      const [Icon, title, desc] = entry;
+                      return (
+                        <div key={title} className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                          <Icon className="w-4 h-4 text-gray-500 dark:text-gray-400 mb-2" />
+                          <div className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">{title}</div>
+                          <div className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed">{desc}</div>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="mt-8 flex items-center justify-center gap-2 flex-wrap">

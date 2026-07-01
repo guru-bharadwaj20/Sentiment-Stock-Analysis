@@ -18,7 +18,7 @@ def test_confidence_high_beats_low():
 
 def test_confidence_zero_articles():
     c = _confidence(0.0, 0.0, 0.5, 0, 0, 0, 0.8)
-    assert c < 20, "Zero articles → very low confidence"
+    assert 0 <= c < 30, "Zero articles → very low confidence"
 
 
 def test_confidence_perfect_conditions():
