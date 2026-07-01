@@ -5,11 +5,11 @@ const Pulse = ({ className }) => (
 );
 
 const PIPELINE = [
-  { label: 'Fetching sources',     match: 'Fetching' },
-  { label: 'Deduplicating',        match: 'Deduplicating' },
-  { label: 'Running sentiment',    match: 'Running sentiment' },
-  { label: 'Computing metrics',    match: 'Computing' },
-  { label: 'Rendering dashboard',  match: 'Rendering' },
+  { label: 'Fetching News',            match: 'Fetching' },
+  { label: 'Removing Duplicates',      match: 'Deduplicating' },
+  { label: 'Running Sentiment Model',  match: 'Running sentiment' },
+  { label: 'Computing Metrics',        match: 'Computing' },
+  { label: 'Rendering Dashboard',      match: 'Rendering' },
 ];
 
 function PipelineBar({ phase }) {
@@ -54,26 +54,15 @@ function PipelineBar({ phase }) {
 
 export default function LoadingSkeleton({ phase }) {
   return (
-    <div className="space-y-5 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn">
       <PipelineBar phase={phase} />
 
-      {/* Analytics cards skeleton */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      {/* KPI cards skeleton */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
             <Pulse className="h-3 w-16 mb-3" />
             <Pulse className="h-5 w-12" />
-          </div>
-        ))}
-      </div>
-
-      {/* Metric cards skeleton */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-            <Pulse className="h-3 w-24 mb-4" />
-            <Pulse className="h-7 w-20 mb-2" />
-            <Pulse className="h-3 w-28" />
           </div>
         ))}
       </div>
@@ -108,6 +97,17 @@ export default function LoadingSkeleton({ phase }) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Metric cards skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+            <Pulse className="h-3 w-24 mb-4" />
+            <Pulse className="h-7 w-20 mb-2" />
+            <Pulse className="h-3 w-28" />
+          </div>
+        ))}
       </div>
 
       {/* Charts skeleton */}

@@ -1,14 +1,9 @@
 import { Server, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CARD, PANEL_TITLE, sentimentTone } from '../../constants/ui';
 
 function HealthIcon({ status }) {
   if (status === 'ok') return <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />;
   return <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />;
-}
-
-function sentimentColor(v) {
-  if (v > 0.05) return '#16a34a';
-  if (v < -0.05) return '#dc2626';
-  return '#9ca3af';
 }
 
 export default function SourceContribution({ source_contributions, source_health }) {
@@ -24,37 +19,38 @@ export default function SourceContribution({ source_contributions, source_health
   const allOk = failedSources.length === 0;
 
   return (
-    <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
+    <div className={`${CARD} p-5`}>
+      <div className="flex items-center gap-2 mb-1">
         <Server className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Source Contribution Analysis</h3>
-        <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">
+        <h3 className={PANEL_TITLE}>Source Contribution Analysis</h3>
+        <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 shrink-0">
           {health.filter((h) => h.status === 'ok').length}/{health.length} sources active
         </span>
       </div>
+      <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">Weighted share, sentiment, health and freshness per news source</p>
 
-      {/* Column headers */}
-      <div className="hidden sm:flex items-center gap-3 mb-2 text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide">
+      {/* Column headers (desktop only) */}
+      <div className="hidden md:flex items-center gap-3 mb-2 text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide">
         <div className="w-28 shrink-0">Source</div>
         <div className="flex-1">Weight</div>
         <div className="w-10 text-right">Pct</div>
-        <div className="w-14 text-right">Sentiment</div>
-        <div className="w-14">Articles</div>
-        <div className="w-14">Avg age</div>
-        <div className="w-16 hidden sm:block">Latency</div>
+        <div className="w-16 text-right">Sentiment</div>
+        <div className="w-16 text-right">Articles</div>
+        <div className="w-14 text-right">Avg age</div>
+        <div className="w-16 text-right">Latency</div>
       </div>
 
       <div className="space-y-3">
         {sources.map(([name, c]) => {
           const h = healthMap[name];
-          const color = sentimentColor(c.avg_sentiment);
+          const tone = sentimentTone(c.avg_sentiment);
           const avgAge = c.avg_age_hours ?? 0;
           const ageStr = avgAge < 24
             ? `${avgAge.toFixed(0)}h`
             : `${(avgAge / 24).toFixed(1)}d`;
           return (
-            <div key={name} className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 w-28 shrink-0">
+            <div key={name} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 p-2.5 md:p-0 rounded-lg bg-gray-50 dark:bg-gray-900/40 md:bg-transparent dark:md:bg-transparent">
+              <div className="flex items-center gap-1.5 w-full md:w-28 shrink-0">
                 {h && <HealthIcon status={h.status} />}
                 <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{name}</span>
               </div>
@@ -66,15 +62,15 @@ export default function SourceContribution({ source_contributions, source_health
                 />
               </div>
 
-              <div className="flex items-center gap-2 text-xs shrink-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                 <span className="text-gray-500 dark:text-gray-400 w-10 text-right tabular-nums">{c.contribution_pct}%</span>
-                <span className="font-semibold w-14 text-right tabular-nums" style={{ color }}>
+                <span className={`font-semibold w-16 text-right tabular-nums ${tone.text}`}>
                   {c.avg_sentiment > 0 ? '+' : ''}{(c.avg_sentiment * 100).toFixed(1)}%
                 </span>
-                <span className="text-gray-500 dark:text-gray-400 w-14 tabular-nums">{c.articles} art.</span>
-                <span className="text-gray-400 dark:text-gray-500 w-14 tabular-nums">{ageStr}</span>
+                <span className="text-gray-500 dark:text-gray-400 w-16 text-right tabular-nums">{c.articles} art.</span>
+                <span className="text-gray-400 dark:text-gray-500 w-14 text-right tabular-nums">{ageStr}</span>
                 {h && (
-                  <span className="text-gray-300 dark:text-gray-600 w-16 hidden sm:flex items-center gap-0.5 tabular-nums">
+                  <span className="text-gray-300 dark:text-gray-600 w-16 flex items-center justify-end gap-0.5 tabular-nums">
                     <Clock className="w-3 h-3 shrink-0" />{h.duration_ms}ms
                   </span>
                 )}

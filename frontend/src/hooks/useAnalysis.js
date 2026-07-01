@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { analyzeTicker } from '../services/api';
+import { useRecentSearches } from './useRecentSearches';
 
 const PHASES = [
   'Fetching news from 7 sources…',
@@ -18,6 +19,7 @@ export function useAnalysis() {
   const [data, setData]       = useState(null);
   const [error, setError]     = useState('');
   const timers                = useRef([]);
+  const { recentSearches, addRecent } = useRecentSearches();
 
   const clearTimers = () => {
     timers.current.forEach(clearTimeout);
@@ -45,6 +47,7 @@ export function useAnalysis() {
       clearTimers();
       setPhase(PHASES[4]);
       setData(result);
+      addRecent(sym);
     } catch (err) {
       clearTimers();
       const apiError = err?.response?.data?.error;
@@ -57,7 +60,7 @@ export function useAnalysis() {
       setLoading(false);
       setPhase('');
     }
-  }, [ticker]);
+  }, [ticker, addRecent]);
 
-  return { ticker, setTicker, loading, phase, data, error, analyze };
+  return { ticker, setTicker, loading, phase, data, error, analyze, recentSearches };
 }

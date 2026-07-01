@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, X, History } from 'lucide-react';
 import { STOCK_DATA } from '../constants/stocks';
+import { FOCUS_RING } from '../constants/ui';
 
 const ALL_STOCKS = Object.values(STOCK_DATA)
   .flat()
@@ -19,11 +20,17 @@ function getSuggestions(query) {
   ).slice(0, 5);
 }
 
-export default function SearchBar({ ticker, setTicker, loading, onSubmit }) {
+function getRecentAsSuggestions(recentSearches) {
+  return recentSearches.map((sym) => ALL_STOCKS.find((s) => s.symbol === sym) ?? { symbol: sym, name: 'Recent search', sector: '' });
+}
+
+export default function SearchBar({ ticker, setTicker, loading, onSubmit, recentSearches = [] }) {
   const [suggestions, setSuggestions]   = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showingRecent, setShowingRecent] = useState(false);
   const [activeIdx, setActiveIdx]        = useState(-1);
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     function handleClick(e) {
@@ -38,8 +45,17 @@ export default function SearchBar({ ticker, setTicker, loading, onSubmit }) {
   const handleChange = (e) => {
     const val = e.target.value.toUpperCase();
     setTicker(val);
+    if (!val) {
+      const recent = getRecentAsSuggestions(recentSearches);
+      setSuggestions(recent);
+      setShowingRecent(true);
+      setShowSuggestions(recent.length > 0);
+      setActiveIdx(-1);
+      return;
+    }
     const suggs = getSuggestions(val);
     setSuggestions(suggs);
+    setShowingRecent(false);
     setShowSuggestions(suggs.length > 0);
     setActiveIdx(-1);
   };
@@ -48,8 +64,18 @@ export default function SearchBar({ ticker, setTicker, loading, onSubmit }) {
     setTicker(symbol);
     setSuggestions([]);
     setShowSuggestions(false);
+    setShowingRecent(false);
     setActiveIdx(-1);
     onSubmit(symbol);
+  };
+
+  const clearTicker = () => {
+    setTicker('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setShowingRecent(false);
+    setActiveIdx(-1);
+    inputRef.current?.focus();
   };
 
   const handleKeyDown = (e) => {
@@ -75,21 +101,32 @@ export default function SearchBar({ ticker, setTicker, loading, onSubmit }) {
     onSubmit();
   };
 
+  const focusSuggestions = () => {
+    if (!ticker.trim()) {
+      const recent = getRecentAsSuggestions(recentSearches);
+      setSuggestions(recent);
+      setShowingRecent(true);
+      setShowSuggestions(recent.length > 0);
+      return;
+    }
+    const suggs = getSuggestions(ticker);
+    setSuggestions(suggs);
+    setShowingRecent(false);
+    setShowSuggestions(suggs.length > 0);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="mb-6">
       <div ref={containerRef} className="relative">
         <div className="flex items-center bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-gray-200 dark:border-gray-700 focus-within:border-gray-900 dark:focus-within:border-gray-400 transition-colors overflow-visible">
           <Search className="w-4 h-4 text-gray-400 ml-4 shrink-0" />
           <input
+            ref={inputRef}
             type="text"
             value={ticker}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            onFocus={() => {
-              const suggs = getSuggestions(ticker);
-              setSuggestions(suggs);
-              setShowSuggestions(suggs.length > 0);
-            }}
+            onFocus={focusSuggestions}
             placeholder="Enter ticker — TSLA, AAPL, RELIANCE.NS …"
             className="flex-1 px-3 py-3.5 bg-transparent text-gray-900 dark:text-gray-100 text-sm outline-none placeholder-gray-400 dark:placeholder-gray-500"
             disabled={loading}
@@ -99,10 +136,20 @@ export default function SearchBar({ ticker, setTicker, loading, onSubmit }) {
             aria-expanded={showSuggestions}
             role="combobox"
           />
+          {ticker && !loading && (
+            <button
+              type="button"
+              onClick={clearTicker}
+              className={`p-1.5 mr-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${FOCUS_RING}`}
+              aria-label="Clear ticker"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             type="submit"
             disabled={loading || !ticker.trim()}
-            className="px-6 py-3.5 bg-gray-900 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 active:bg-gray-800 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className={`px-6 py-3.5 bg-gray-900 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 active:bg-gray-800 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
             aria-label="Analyze stock"
           >
             {loading ? (
@@ -121,6 +168,12 @@ export default function SearchBar({ ticker, setTicker, loading, onSubmit }) {
             role="listbox"
             className="absolute top-full left-0 right-0 z-50 mt-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden"
           >
+            {showingRecent && (
+              <li className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide bg-gray-50 dark:bg-gray-900">
+                <History className="w-3 h-3" />
+                Recent Searches
+              </li>
+            )}
             {suggestions.map((s, i) => (
               <li
                 key={s.symbol}
@@ -139,7 +192,7 @@ export default function SearchBar({ ticker, setTicker, loading, onSubmit }) {
                     i === activeIdx ? 'text-gray-300' : 'text-gray-400 dark:text-gray-500'
                   }`}
                 >
-                  {s.name} · {s.sector}
+                  {s.sector ? `${s.name} · ${s.sector}` : s.name}
                 </span>
               </li>
             ))}

@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import {
   ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -6,27 +7,41 @@ import {
   LineChart, Line, ReferenceLine,
 } from 'recharts';
 import { Clock } from 'lucide-react';
+import { CARD, SEMANTIC } from '../../constants/ui';
 
 const pct1 = (v) => `${v > 0 ? '+' : ''}${((v ?? 0) * 100).toFixed(1)}%`;
 
-const CARD = 'p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm';
-const TITLE = 'text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4';
+const PANEL = `${CARD} p-5`;
+const TITLE = 'text-base font-semibold text-gray-800 dark:text-gray-200';
+const SUBTITLE = 'text-xs text-gray-400 dark:text-gray-500 mt-0.5 mb-4';
+const FOOTER = 'mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400';
+
+function ChartHeader({ title, subtitle }) {
+  return (
+    <div className="mb-1">
+      <h3 className={TITLE}>{title}</h3>
+      {subtitle && <p className={SUBTITLE}>{subtitle}</p>}
+    </div>
+  );
+}
 
 /* ─ Radar ──────────────────────────────────────────────────── */
 
 function RadarPanel({ advanced_stats, totalArticles }) {
   const a = advanced_stats ?? {};
-  const data = [
+  const data = useMemo(() => [
     { metric: 'Sentiment',  value: +(((a.avg_sentiment ?? 0) + 1) / 2 * 100).toFixed(1) },
     { metric: 'Consensus',  value: +((a.consensus_strength ?? 0) * 100).toFixed(1) },
     { metric: 'Recency',    value: +Math.min(((a.articles_24h ?? 0) / Math.max(a.articles_7d ?? 1, 1)) * 100, 100).toFixed(1) },
     { metric: 'Volume',     value: +Math.min((totalArticles / 40) * 100, 100).toFixed(1) },
     { metric: 'Stability',  value: +Math.max(0, (1 - (a.volatility ?? 0)) * 100).toFixed(1) },
-  ];
+  ], [a.avg_sentiment, a.consensus_strength, a.articles_24h, a.articles_7d, a.volatility, totalArticles]);
+
+  const strongest = data.reduce((best, d) => (d.value > best.value ? d : best), data[0]);
 
   return (
-    <div className={CARD}>
-      <h3 className={TITLE}>Market Strength Radar</h3>
+    <div className={PANEL}>
+      <ChartHeader title="Market Strength Radar" subtitle="Composite score across five signal dimensions" />
       <div className="h-60">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data}>
@@ -38,6 +53,7 @@ function RadarPanel({ advanced_stats, totalArticles }) {
           </RadarChart>
         </ResponsiveContainer>
       </div>
+      <p className={FOOTER}>Strongest dimension: <span className="font-semibold text-gray-700 dark:text-gray-300">{strongest.metric}</span> ({strongest.value.toFixed(0)}/100)</p>
     </div>
   );
 }
@@ -47,8 +63,8 @@ function RadarPanel({ advanced_stats, totalArticles }) {
 function TimePanel({ advanced_stats }) {
   const a = advanced_stats ?? {};
   return (
-    <div className={CARD}>
-      <h3 className={TITLE}>Time-Based Sentiment</h3>
+    <div className={PANEL}>
+      <ChartHeader title="Time-Based Sentiment" subtitle="Recent coverage vs the trailing week" />
       <div className="space-y-3">
         {[
           { label: 'Last 24 Hours', count: a.articles_24h ?? 0, value: a.sentiment_24h ?? 0 },
@@ -59,13 +75,13 @@ function TimePanel({ advanced_stats }) {
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</div>
               <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{count} articles</div>
             </div>
-            <div className={`text-xl font-bold tabular-nums ${value > 0 ? 'text-green-600 dark:text-green-400' : value < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            <div className={`text-xl font-bold tabular-nums ${value > 0 ? SEMANTIC.positive.text : value < 0 ? SEMANTIC.negative.text : SEMANTIC.neutral.text}`}>
               {pct1(value)}
             </div>
           </div>
         ))}
 
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+        <div className={`p-3 ${SEMANTIC.info.bg} rounded-lg border ${SEMANTIC.info.border}`}>
           <div className="flex items-center gap-2 mb-1">
             <Clock className="w-3.5 h-3.5 text-blue-500" />
             <span className="text-xs font-semibold text-blue-800 dark:text-blue-300">Coverage Freshness</span>
@@ -84,15 +100,20 @@ function TimePanel({ advanced_stats }) {
 /* ─ Pie ────────────────────────────────────────────────────── */
 
 function PiePanel({ stats }) {
+  const total = (stats?.bullish ?? 0) + (stats?.neutral ?? 0) + (stats?.bearish ?? 0);
   const pieData = [
-    { name: 'Bullish', value: stats?.bullish ?? 0, color: '#16a34a' },
-    { name: 'Neutral', value: stats?.neutral ?? 0, color: '#9ca3af' },
-    { name: 'Bearish', value: stats?.bearish ?? 0, color: '#dc2626' },
+    { name: 'Bullish', value: stats?.bullish ?? 0, color: SEMANTIC.positive.hex },
+    { name: 'Neutral', value: stats?.neutral ?? 0, color: SEMANTIC.neutral.hex },
+    { name: 'Bearish', value: stats?.bearish ?? 0, color: SEMANTIC.negative.hex },
   ].filter((d) => d.value > 0);
 
+  const majority = pieData.length
+    ? pieData.reduce((best, d) => (d.value > best.value ? d : best), pieData[0])
+    : null;
+
   return (
-    <div className={CARD}>
-      <h3 className={TITLE}>Sentiment Distribution</h3>
+    <div className={PANEL}>
+      <ChartHeader title="Sentiment Distribution" subtitle={`${total} scored articles by sentiment class`} />
       <div className="h-52">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -111,6 +132,11 @@ function PiePanel({ stats }) {
           </div>
         ))}
       </div>
+      {majority && (
+        <p className={FOOTER}>
+          <span className="font-semibold text-gray-700 dark:text-gray-300">{majority.name}</span> makes up {total > 0 ? Math.round((majority.value / total) * 100) : 0}% of coverage
+        </p>
+      )}
     </div>
   );
 }
@@ -129,21 +155,32 @@ function SourcePanel({ top_comments }) {
   const data = Object.entries(map).map(([name, v]) => ({ name, ...v }));
 
   return (
-    <div className={CARD}>
-      <h3 className={TITLE}>Source Breakdown</h3>
+    <div className={PANEL}>
+      <ChartHeader title="Source Breakdown" subtitle="Sentiment mix contributed by each source" />
       {data.length > 0 ? (
-        <div className="h-52">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ bottom: 28 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af' }} angle={-35} textAnchor="end" height={55} interval={0} />
-              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
-              <RcTooltip />
-              <Bar dataKey="bullish" stackId="a" fill="#16a34a" />
-              <Bar dataKey="neutral" stackId="a" fill="#9ca3af" />
-              <Bar dataKey="bearish" stackId="a" fill="#dc2626" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <>
+          <div className="h-52">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data} margin={{ bottom: 28 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af' }} angle={-35} textAnchor="end" height={55} interval={0} />
+                <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                <RcTooltip />
+                <Bar dataKey="bullish" stackId="a" fill={SEMANTIC.positive.hex} />
+                <Bar dataKey="neutral" stackId="a" fill={SEMANTIC.neutral.hex} />
+                <Bar dataKey="bearish" stackId="a" fill={SEMANTIC.negative.hex} radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex justify-center gap-5 mt-2">
+            {[['Bullish', SEMANTIC.positive.hex], ['Neutral', SEMANTIC.neutral.hex], ['Bearish', SEMANTIC.negative.hex]].map(([label, color]) => (
+              <div key={label} className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                <span className="text-xs text-gray-600 dark:text-gray-400">{label}</span>
+              </div>
+            ))}
+          </div>
+          <p className={FOOTER}>{data.length} sources represented among top articles</p>
+        </>
       ) : (
         <div className="h-52 flex items-center justify-center text-sm text-gray-400 dark:text-gray-500">No source data</div>
       )}
@@ -154,7 +191,8 @@ function SourcePanel({ top_comments }) {
 /* ─ Sentiment trend line ────────────────────────────────────── */
 
 function TrendPanel({ top_comments }) {
-  const data = (top_comments ?? []).slice(0, 12).map((c, i) => ({
+  const articles = (top_comments ?? []).slice(0, 12);
+  const data = articles.map((c, i) => ({
     index:     i + 1,
     sentiment: +(c.score * 100).toFixed(2),
     title:     c.text?.slice(0, 40) ?? '',
@@ -166,16 +204,18 @@ function TrendPanel({ top_comments }) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 text-xs max-w-[200px]">
         <p className="font-medium text-gray-700 dark:text-gray-300 truncate mb-0.5">{d.payload.title}…</p>
-        <p style={{ color: d.value >= 0 ? '#16a34a' : '#dc2626' }}>
+        <p style={{ color: d.value >= 0 ? SEMANTIC.positive.hex : SEMANTIC.negative.hex }}>
           Score: {d.value > 0 ? '+' : ''}{d.value?.toFixed(1)}
         </p>
       </div>
     );
   };
 
+  const avg = data.length ? data.reduce((sum, d) => sum + d.sentiment, 0) / data.length : 0;
+
   return (
-    <div className={CARD}>
-      <h3 className={TITLE}>Sentiment Trend (Top Articles)</h3>
+    <div className={PANEL}>
+      <ChartHeader title="Sentiment Trend (Top Articles)" subtitle={`Score progression across the ${data.length} most relevant headlines`} />
       <div className="h-52">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
@@ -187,6 +227,7 @@ function TrendPanel({ top_comments }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+      <p className={FOOTER}>Average score across shown articles: <span className={`font-semibold ${avg >= 0 ? SEMANTIC.positive.text : SEMANTIC.negative.text}`}>{avg > 0 ? '+' : ''}{avg.toFixed(1)}</span></p>
     </div>
   );
 }
@@ -219,8 +260,8 @@ function HistoryPanel({ history }) {
   };
 
   return (
-    <div className={CARD}>
-      <h3 className={TITLE}>Analysis History</h3>
+    <div className={PANEL}>
+      <ChartHeader title="Analysis History" subtitle={`Confidence and sentiment across the last ${history.length} runs`} />
 
       {chartData.length >= 2 && (
         <div className="h-36 mb-5">
@@ -261,7 +302,7 @@ function HistoryPanel({ history }) {
                 {h.verdict}
               </span>
               <span className="text-gray-500 dark:text-gray-400">{h.confidence_score?.toFixed(1)}% conf</span>
-              <span className={`${h.avg_sentiment > 0 ? 'text-green-600 dark:text-green-400' : h.avg_sentiment < 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400'}`}>
+              <span className={`${h.avg_sentiment > 0 ? SEMANTIC.positive.text : h.avg_sentiment < 0 ? SEMANTIC.negative.text : 'text-gray-400'}`}>
                 {h.avg_sentiment > 0 ? '+' : ''}{(h.avg_sentiment * 100).toFixed(1)}%
               </span>
             </div>
@@ -272,4 +313,18 @@ function HistoryPanel({ history }) {
   );
 }
 
-export { RadarPanel, TimePanel, PiePanel, SourcePanel, TrendPanel, HistoryPanel };
+const MemoRadarPanel   = memo(RadarPanel);
+const MemoTimePanel    = memo(TimePanel);
+const MemoPiePanel     = memo(PiePanel);
+const MemoSourcePanel  = memo(SourcePanel);
+const MemoTrendPanel   = memo(TrendPanel);
+const MemoHistoryPanel = memo(HistoryPanel);
+
+export {
+  MemoRadarPanel as RadarPanel,
+  MemoTimePanel as TimePanel,
+  MemoPiePanel as PiePanel,
+  MemoSourcePanel as SourcePanel,
+  MemoTrendPanel as TrendPanel,
+  MemoHistoryPanel as HistoryPanel,
+};

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TrendingUp, TrendingDown, MinusCircle, CheckCircle, Building2, Signal,
-         DollarSign, ArrowUpRight, ArrowDownRight, Minus, Info, Cpu } from 'lucide-react';
+         DollarSign, ArrowUpRight, ArrowDownRight, Minus, Info, Cpu, Clock } from 'lucide-react';
+import { timeAgo, PANEL, PANEL_TITLE } from '../../constants/ui';
 
 const STYLES = {
   'STRONG BUY':  { ring: 'border-green-400', bg: 'bg-green-50 dark:bg-green-900/20',  text: 'text-green-700 dark:text-green-400',  bar: 'bg-green-500'  },
@@ -84,22 +85,36 @@ function ConfidenceTooltip({ textClass }) {
 }
 
 function ModelBadge({ model }) {
-  if (!model || model === 'vader') return null;
+  const label = model === 'finbert' ? 'FinBERT' : 'VADER';
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
       <Cpu className="w-3 h-3" />
-      FinBERT
+      {label}
+    </span>
+  );
+}
+
+function LastUpdatedBadge({ timestamp }) {
+  const label = timeAgo(timestamp) ?? 'Just now';
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+      <Clock className="w-3 h-3" />
+      {label}
     </span>
   );
 }
 
 export default function VerdictCard({ data }) {
-  const { verdict, confidence_score, verdict_reasons = [], stats, stock_info, ticker, trend, model_used } = data;
+  const { verdict, confidence_score, verdict_reasons = [], stats, stock_info, ticker, trend, model_used, history } = data;
   const s = STYLES[verdict] ?? STYLES.HOLD;
 
   const total      = (stats?.bullish ?? 0) + (stats?.bearish ?? 0) + (stats?.neutral ?? 0);
   const sigStrength = confidence_score > 60 ? 'Strong' : confidence_score > 30 ? 'Moderate' : 'Weak';
   const dataQuality = confidence_score > 70 ? 'High'   : confidence_score > 40 ? 'Moderate' : 'Low';
+  const lastUpdatedAt = history?.[0]?.timestamp;
+
+  const explanation = verdict_reasons[0]
+    ?? `Signal strength is ${sigStrength.toLowerCase()} with ${dataQuality.toLowerCase()} data quality across ${total} articles.`;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -109,16 +124,17 @@ export default function VerdictCard({ data }) {
           <div className="space-y-1.5">
             <div className={`flex items-center gap-2 ${s.text} mb-1`}>
               <VerdictIcon verdict={verdict} />
-              <h3 className="text-2xl font-bold tracking-tight">{verdict}</h3>
+              <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">{verdict}</h3>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <TrendBadge trend={trend} />
               <ModelBadge model={model_used} />
+              <LastUpdatedBadge timestamp={lastUpdatedAt} />
             </div>
           </div>
           <div className="text-right shrink-0">
             <div className={`flex items-start justify-end gap-1 ${s.text}`}>
-              <span className="text-3xl font-bold tabular-nums">
+              <span className="text-4xl font-bold tabular-nums">
                 {confidence_score?.toFixed(1)}%
               </span>
               <ConfidenceTooltip textClass={s.text} />
@@ -135,10 +151,13 @@ export default function VerdictCard({ data }) {
           />
         </div>
 
+        {/* Short explanation */}
+        <p className={`text-sm font-medium leading-snug mb-3 ${s.text}`}>{explanation}</p>
+
         {/* Reasons */}
-        {verdict_reasons.length > 0 && (
+        {verdict_reasons.length > 1 && (
           <ul className="space-y-1.5 mb-4">
-            {verdict_reasons.slice(0, 4).map((r, i) => (
+            {verdict_reasons.slice(1, 4).map((r, i) => (
               <li key={i} className={`flex items-start gap-2 text-xs ${s.text}`}>
                 <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 opacity-70" />
                 <span>{r}</span>
@@ -158,8 +177,8 @@ export default function VerdictCard({ data }) {
       </div>
 
       {/* Stock info */}
-      <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Stock Information</h3>
+      <div className={PANEL}>
+        <h3 className={`${PANEL_TITLE} mb-4`}>Stock Information</h3>
         <div className="space-y-3">
           <div className="flex items-start gap-3">
             <Building2 className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />

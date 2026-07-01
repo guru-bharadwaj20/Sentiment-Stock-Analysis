@@ -37,7 +37,7 @@ The system fetches news in parallel from 7 independent sources, fuzzy-deduplicat
 | Persistence | SQLite history — verdict + confidence trend visible across runs |
 | Export | Frontend JSON / CSV download of full analysis and top headlines |
 | Dark mode | System-preference-aware theme with localStorage persistence |
-| Search autocomplete | Fuzzy prefix matching on 40+ predefined tickers with keyboard navigation |
+| Search autocomplete | Fuzzy prefix matching on 40+ predefined tickers with keyboard navigation, clear button, and localStorage-backed recent searches |
 | Type safety | Full Pydantic v2 response models; structured logging throughout |
 | Container-ready | Dockerfile (backend + frontend) + docker-compose.yml |
 | CI/CD | GitHub Actions: lint → test → build → Docker smoke test |
@@ -51,10 +51,10 @@ The system fetches news in parallel from 7 independent sources, fuzzy-deduplicat
 │  React 18 Frontend  (Vite · Tailwind CSS · Recharts)          │
 │                                                               │
 │  useAnalysis hook → api.js → GET /analyze/{ticker}            │
-│  useTheme hook → dark/light toggle persisted to localStorage  │
-│  SearchBar with fuzzy autocomplete from 40+ predefined stocks │
-│  AnalyticsCards · SourceContribution · TrendBadge             │
-│  Export: JSON / CSV download (no backend round-trip)          │
+│  useTheme / useRecentSearches → localStorage persistence      │
+│  SearchBar with fuzzy autocomplete + recent searches          │
+│  KPI cards · Hero verdict · SourceContribution · TrendBadge   │
+│  Export: JSON / CSV / print-to-PDF (no backend round-trip)    │
 └─────────────────────┬─────────────────────────────────────────┘
                       │ JSON
 ┌─────────────────────▼─────────────────────────────────────────┐
@@ -168,32 +168,34 @@ Sentiment_Stock_Analysis/
     ├── Dockerfile
     ├── nginx.conf
     └── src/
-        ├── App.jsx                      # Composition root + dark mode toggle
+        ├── App.jsx                      # Composition root, empty state, dark mode toggle
         ├── main.jsx
-        ├── index.css                    # Tailwind + dark scrollbar + animations
+        ├── index.css                    # Tailwind + dark scrollbar + animations + focus rings
         │
         ├── hooks/
         │   ├── useAnalysis.js           # Analysis state + staged progress phases
-        │   └── useTheme.js              # Dark/light toggle persisted to localStorage
+        │   ├── useTheme.js              # Dark/light toggle persisted to localStorage
+        │   └── useRecentSearches.js     # Last 5 tickers persisted to localStorage
         │
         ├── constants/
-        │   └── stocks.js                # 40+ stocks across 6 markets
+        │   ├── stocks.js                # 40+ stocks across 6 markets
+        │   └── ui.js                    # Shared card/typography classes + semantic color tokens
         │
         ├── services/
         │   └── api.js                   # Axios wrappers
         │
         └── components/
-            ├── SearchBar.jsx            # Input + fuzzy autocomplete dropdown
+            ├── SearchBar.jsx            # Autocomplete, recent searches, clear button, keyboard nav
             ├── Sidebar.jsx              # Desktop + mobile variants (dark mode)
-            ├── LoadingSkeleton.jsx      # Animated placeholder dashboard
+            ├── LoadingSkeleton.jsx      # Animated pipeline progress + placeholder dashboard
             └── Dashboard/
-                ├── index.jsx            # Composition + JSON/CSV export handler
-                ├── VerdictCard.jsx      # Verdict + confidence + TrendBadge
-                ├── AnalyticsCards.jsx   # Articles scanned, dupes, sources, cache, time, export
-                ├── MetricCards.jsx      # 4 KPI cards + bull/neutral/bear bars
-                ├── SourceContribution.jsx  # Per-source %, avg sentiment, health icons
-                ├── Charts.jsx           # Radar, time, pie, source bar, trend line, history
-                └── Headlines.jsx        # Clickable headlines with source/recency badges
+                ├── index.jsx            # Section layout (KPIs → verdict → charts → sources → headlines)
+                ├── VerdictCard.jsx      # Hero verdict: confidence, trend, model, last updated, explanation
+                ├── AnalyticsCards.jsx   # KPI row (confidence, scanned, sources, dupes, cache, time) + export toolbar
+                ├── MetricCards.jsx      # Avg sentiment / volatility / momentum / consensus + bull-neutral-bear bars
+                ├── SourceContribution.jsx  # Per-source %, avg sentiment, health icons, latency
+                ├── Charts.jsx           # Radar, time, pie, source bar, trend line, history — with subtitles + insights
+                └── Headlines.jsx        # Headline cards with sentiment badge, publisher, timestamp, link
 ```
 
 ---
@@ -413,6 +415,23 @@ confidence = (
 | Slow first request | Some demo API tiers rate-limit; first request after cache expiry takes 5–10 s |
 | Tests fail on import | Run `pytest` from inside the `backend/` directory |
 | Docker frontend can't reach backend | Set `VITE_API_URL=http://backend:8000` and ensure services share a Docker network |
+
+---
+
+## Known Limitations
+
+- In-process TTL cache and SQLite history are single-instance — horizontal scaling would need a shared cache/DB.
+- No authentication/rate limiting on the API; not intended to be exposed publicly without a reverse proxy in front of it.
+- Sentiment analysis is headline/description-only — it does not read full article bodies or attach to price/volume data.
+- Free-tier news APIs (Marketaux, Alpha Vantage) can rate-limit or time out, which is why per-source health/timing is surfaced in every response.
+- No automated frontend test suite yet; backend has 42 pytest cases across sentiment, dedup, analyzer, and API layers.
+
+## Future Improvements
+
+- WebSocket/SSE push for live sentiment updates instead of polling on demand.
+- Redis-backed cache and Postgres history for multi-instance deployments.
+- Frontend component/unit tests (Vitest + Testing Library).
+- Price/volume correlation overlay on the sentiment trend chart.
 
 ---
 

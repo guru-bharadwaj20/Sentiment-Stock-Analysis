@@ -1,10 +1,12 @@
+import { memo, useMemo } from 'react';
 import { Activity, Zap, TrendingUp, Target, ThumbsUp, ThumbsDown, MinusCircle } from 'lucide-react';
+import { CARD, SEMANTIC } from '../../constants/ui';
 
 const pct = (v, d = 2) => `${v > 0 ? '+' : ''}${((v ?? 0) * 100).toFixed(d)}%`;
 
-function Card({ label, value, sub, Icon, colorClass }) {
+const Card = memo(function Card({ label, value, sub, Icon, colorClass }) {
   return (
-    <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div className={`${CARD} p-5`}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{label}</span>
         {Icon && <Icon className="w-4 h-4 text-gray-300 dark:text-gray-600" />}
@@ -13,12 +15,12 @@ function Card({ label, value, sub, Icon, colorClass }) {
       {sub && <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">{sub}</div>}
     </div>
   );
-}
+});
 
-function SentimentBar({ count, total, color, label, Icon }) {
+const SentimentBar = memo(function SentimentBar({ count, total, color, label, Icon }) {
   const p = total > 0 ? +((count / total) * 100).toFixed(1) : 0;
   return (
-    <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div className={`${CARD} p-5`}>
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{label}</span>
         <Icon className="w-4 h-4" style={{ color }} />
@@ -33,11 +35,14 @@ function SentimentBar({ count, total, color, label, Icon }) {
       </div>
     </div>
   );
-}
+});
 
-export default function MetricCards({ advanced_stats, stats }) {
+function MetricCards({ advanced_stats, stats }) {
   const a = advanced_stats ?? {};
-  const total = (stats?.bullish ?? 0) + (stats?.bearish ?? 0) + (stats?.neutral ?? 0);
+  const total = useMemo(
+    () => (stats?.bullish ?? 0) + (stats?.bearish ?? 0) + (stats?.neutral ?? 0),
+    [stats]
+  );
 
   return (
     <>
@@ -46,33 +51,35 @@ export default function MetricCards({ advanced_stats, stats }) {
           label="Avg Sentiment" Icon={Activity}
           value={pct(a.avg_sentiment)}
           sub="Mean VADER score"
-          colorClass={a.avg_sentiment > 0 ? 'text-green-600 dark:text-green-400' : a.avg_sentiment < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}
+          colorClass={a.avg_sentiment > 0 ? SEMANTIC.positive.text : a.avg_sentiment < 0 ? SEMANTIC.negative.text : SEMANTIC.neutral.text}
         />
         <Card
           label="Volatility" Icon={Zap}
           value={pct(a.volatility)}
           sub="Sentiment variance"
-          colorClass={(a.volatility ?? 0) > 0.3 ? 'text-red-600 dark:text-red-400' : (a.volatility ?? 0) > 0.15 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}
+          colorClass={(a.volatility ?? 0) > 0.3 ? SEMANTIC.negative.text : (a.volatility ?? 0) > 0.15 ? SEMANTIC.warning.text : SEMANTIC.positive.text}
         />
         <Card
           label="Momentum" Icon={TrendingUp}
           value={pct(a.momentum)}
           sub="Recent vs older"
-          colorClass={(a.momentum ?? 0) > 0 ? 'text-green-600 dark:text-green-400' : (a.momentum ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}
+          colorClass={(a.momentum ?? 0) > 0 ? SEMANTIC.positive.text : (a.momentum ?? 0) < 0 ? SEMANTIC.negative.text : SEMANTIC.neutral.text}
         />
         <Card
           label="Consensus" Icon={Target}
           value={`${((a.consensus_strength ?? 0) * 100).toFixed(1)}%`}
           sub="Agreement level"
-          colorClass="text-blue-600 dark:text-blue-400"
+          colorClass={SEMANTIC.info.text}
         />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <SentimentBar count={stats?.bullish ?? 0} total={total} color="#16a34a" label="Bullish" Icon={ThumbsUp}    />
-        <SentimentBar count={stats?.neutral ?? 0} total={total} color="#9ca3af" label="Neutral" Icon={MinusCircle} />
-        <SentimentBar count={stats?.bearish ?? 0} total={total} color="#dc2626" label="Bearish" Icon={ThumbsDown}  />
+        <SentimentBar count={stats?.bullish ?? 0} total={total} color={SEMANTIC.positive.hex} label="Bullish" Icon={ThumbsUp}    />
+        <SentimentBar count={stats?.neutral ?? 0} total={total} color={SEMANTIC.neutral.hex} label="Neutral" Icon={MinusCircle} />
+        <SentimentBar count={stats?.bearish ?? 0} total={total} color={SEMANTIC.negative.hex} label="Bearish" Icon={ThumbsDown}  />
       </div>
     </>
   );
 }
+
+export default memo(MetricCards);

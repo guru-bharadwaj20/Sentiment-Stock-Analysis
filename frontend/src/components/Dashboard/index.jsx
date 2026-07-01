@@ -2,7 +2,7 @@ import { Signal, Newspaper, Target, Calendar, AlertTriangle, Zap } from 'lucide-
 import VerdictCard from './VerdictCard';
 import MetricCards from './MetricCards';
 import Headlines from './Headlines';
-import AnalyticsCards from './AnalyticsCards';
+import AnalyticsCards, { ExportToolbar } from './AnalyticsCards';
 import SourceContribution from './SourceContribution';
 import { RadarPanel, TimePanel, PiePanel, SourcePanel, TrendPanel, HistoryPanel } from './Charts';
 
@@ -15,9 +15,11 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+const SECTION_TITLE = 'text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3';
+
 export default function Dashboard({ data }) {
   const { stats, top_comments, advanced_stats, history, meta, timing, cached,
-          cache_meta, source_contributions, source_health } = data;
+          cache_meta, source_contributions, source_health, confidence_score } = data;
   const totalArticles = (stats?.bullish ?? 0) + (stats?.bearish ?? 0) + (stats?.neutral ?? 0);
   const dateStr = new Date().toISOString().split('T')[0];
 
@@ -46,42 +48,50 @@ export default function Dashboard({ data }) {
   };
 
   return (
-    <div className="space-y-5 animate-fadeIn" id="dashboard-print-area">
-      {/* Verdict + stock info */}
+    <div className="space-y-8 animate-fadeIn" id="dashboard-print-area">
+      {/* KPI Cards */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className={`${SECTION_TITLE} mb-0`}>Key Metrics</h2>
+          <div className="no-print">
+            <ExportToolbar onExport={handleExport} />
+          </div>
+        </div>
+        <AnalyticsCards
+          confidence_score={confidence_score}
+          meta={meta}
+          timing={timing}
+          cached={cached}
+          cache_meta={cache_meta}
+        />
+      </section>
+
+      {/* Hero Verdict + stock info */}
       <VerdictCard data={data} />
 
-      {/* Analytics meta-cards */}
-      <AnalyticsCards
-        meta={meta}
-        timing={timing}
-        cached={cached}
-        cache_meta={cache_meta}
-        onExport={handleExport}
-      />
+      {/* Charts grid */}
+      <section className="space-y-4">
+        <h2 className={SECTION_TITLE}>Sentiment Analytics</h2>
+        <MetricCards advanced_stats={advanced_stats} stats={stats} />
 
-      {/* 4 metric cards + bull/neutral/bear bars */}
-      <MetricCards advanced_stats={advanced_stats} stats={stats} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <RadarPanel advanced_stats={advanced_stats} totalArticles={totalArticles} />
+          <TimePanel  advanced_stats={advanced_stats} />
+        </div>
 
-      {/* Radar + time-based */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RadarPanel advanced_stats={advanced_stats} totalArticles={totalArticles} />
-        <TimePanel  advanced_stats={advanced_stats} />
-      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <PiePanel    stats={stats} />
+          <SourcePanel top_comments={top_comments} />
+        </div>
 
-      {/* Pie + source breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <PiePanel    stats={stats} />
-        <SourcePanel top_comments={top_comments} />
-      </div>
+        <TrendPanel top_comments={top_comments} />
+      </section>
 
       {/* Per-source contribution analysis */}
       <SourceContribution
         source_contributions={source_contributions}
         source_health={source_health}
       />
-
-      {/* Sentiment trend line */}
-      <TrendPanel top_comments={top_comments} />
 
       {/* Headlines */}
       <Headlines top_comments={top_comments} />
