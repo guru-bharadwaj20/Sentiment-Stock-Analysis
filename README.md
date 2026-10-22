@@ -189,11 +189,11 @@ Feature-complete for its scope.
 
 ### What CI proves on every push
 
-| Stage | Proves |
+| Job | Proves |
 |---|---|
-| Lint → test | The backend lints and its 42 pytest cases pass |
-| Build | Backend and frontend images build |
-| Smoke test | The built stack starts and answers |
+| Backend — lint & test | Every module compiles and the 42 pytest cases pass on Python 3.11 |
+| Frontend — lint & build | ESLint is clean and the production bundle builds on Node 20 |
+| Docker — build images | Backend and frontend images build |
 
 | Known limit | Detail |
 |---|---|
