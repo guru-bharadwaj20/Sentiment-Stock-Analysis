@@ -1,5 +1,13 @@
 # Stock Sentiment Analyzer
 
+<p align="center">
+  <a href="Sentiment-Stock-Analysis%20Demo.mp4">
+    <img src="images/Sentiment-Stock-Analysis%20Demo%20thumbnail.png" alt="Watch the Sentiment-Stock-Analysis demo video" width="720">
+  </a>
+  <br>
+  <sub>▶ <b><a href="Sentiment-Stock-Analysis%20Demo.mp4">Watch the Sentiment-Stock-Analysis demo</a></b> (74 s): the Stage 1 plan, all 14 commits, the CI run, the README quick start on a fresh clone, and 12 live steps through the dashboard and the API</sub>
+</p>
+
 **News from seven sources, scored by a finance-tuned sentiment model, turned into one BUY / SELL / HOLD verdict — with every source's contribution on show.**
 
 [![CI](https://github.com/guru-bharadwaj20/Sentiment-Stock-Analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/guru-bharadwaj20/Sentiment-Stock-Analysis/actions/workflows/ci.yml)
